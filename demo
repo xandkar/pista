@@ -1,0 +1,41 @@
+#! /bin/bash
+
+set -e
+
+rm -f  a b c d e
+mkfifo a b c d e
+
+mem_used() {
+    free -h | awk '/^Mem:/ {print $3; exit 0}'
+}
+
+counter_expired() {
+    echo $((c++)) > "$1"
+    sleep 1;
+    echo $((c++)) > "$1"
+    sleep 1;
+}
+
+counter_io_error() {
+    echo $((d++)) > "$1"
+    sleep 1;
+    echo $((d++)) > "$1"
+    sleep 1;
+    rm "$1"
+}
+
+while :; do echo $((a++)) > a; sleep 1; done &
+while :; do mem_used      > b; sleep 1; done &
+counter_expired             c &
+counter_io_error            d &
+while :; do date          > e; sleep 1; done &
+
+./khatus \
+    -s '|' \
+    -l 0 \
+    -i 0.5 \
+    a  5 2 \
+    b 10 2 \
+    c 10 2 \
+    d 10 2 \
+    e 20 2
