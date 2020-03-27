@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,22 +16,42 @@
 #include <X11/Xlib.h>
 
 #include "bsdtimespec.h"
-#include "pista_log.h"
-#include "pista_time.h"
 
-#define usage(...) { \
-	print_usage(); \
-	fprintf(stderr, "Error:\n    " __VA_ARGS__); \
-	exit(EXIT_FAILURE); \
-}
+
+#define debug(...) \
+	if (log_level >= Debug) { \
+		fprintf(stderr, "[debug] " __VA_ARGS__); \
+		fflush(stderr); \
+	}
+#define info(...) \
+	if (log_level >= Info ) { \
+		fprintf(stderr, "[info] "  __VA_ARGS__); \
+		fflush(stderr); \
+	}
+#define warn(...) \
+	if (log_level >= Warn ) { \
+		fprintf(stderr, "[warn] "  __VA_ARGS__); \
+		fflush(stderr); \
+	}
+#define error(...) \
+	if (log_level >= Error) { \
+		fprintf(stderr, "[error] " __VA_ARGS__); \
+		fflush(stderr); \
+	}
+#define fatal(...) \
+	{ \
+		fprintf(stderr, "[fatal] " __VA_ARGS__); \
+		exit(EXIT_FAILURE); \
+	}
+#define usage(...) \
+	{ \
+		print_usage(); \
+		fprintf(stderr, "Error:\n    " __VA_ARGS__); \
+		exit(EXIT_FAILURE); \
+	}
+
 #define ERRMSG "ERROR"
 
-
-static const char errmsg[] = ERRMSG;
-static const int  errlen   = sizeof(ERRMSG) - 1;
-
-char *argv0 = NULL;
-int running = 1;
 
 /* TODO: Convert slot list to slot array. */
 typedef struct Slot Slot;
@@ -64,6 +85,56 @@ enum read_status {
 	FAILURE
 };
 
+enum LogLevel {
+	Nothing,
+	Error,
+	Warn,
+	Info,
+	Debug
+};
+
+
+char *argv0 = NULL;
+int running = 1;
+enum LogLevel log_level = Error;
+static const char errmsg[] = ERRMSG;
+static const int  errlen   = sizeof(ERRMSG) - 1;
+
+
+struct timespec
+timespec_of_float(double n)
+{
+	double integral;
+	double fractional;
+	struct timespec t;
+
+	fractional = modf(n, &integral);
+	t.tv_sec = (int) integral;
+	t.tv_nsec = (int) (1E9 * fractional);
+
+	return t;
+}
+
+void
+snooze(struct timespec *t)
+{
+	struct timespec remainder;
+
+	if (nanosleep(t, &remainder) < 0) {
+		if (errno == EINTR) {
+			warn(
+			    "nanosleep interrupted. Remainder: "
+			    "{ tv_sec = %ld, tv_nsec = %ld }",
+			    remainder.tv_sec, remainder.tv_nsec);
+			/* No big deal if we occasionally sleep less,
+			 * so not attempting to correct after an interruption.
+			 */
+		} else {
+			fatal("nanosleep: %s\n", strerror(errno));
+		}
+	}
+}
+
 char *
 buf_create(Config *cfg)
 {
@@ -73,7 +144,7 @@ buf_create(Config *cfg)
 
 	buf = calloc(1, cfg->buf_width + 1);
 	if (buf == NULL)
-		pista_fatal(
+		fatal(
 		    "[memory] Failed to allocate buffer of %d bytes",
 		    cfg->buf_width
 		);
@@ -113,7 +184,7 @@ slots_rev(Slot *old)
 void
 slot_log(Slot *s)
 {
-	pista_info("Slot "
+	info("Slot "
 	    "{"
 	    " in_fifo = %s,"
 	    " in_fd = %d,"
@@ -157,7 +228,7 @@ slots_assert_fifos_exist(Slot *s)
 
 	for (; s; s = s->next) {
 		if (lstat(s->in_fifo, &st) < 0) {
-			pista_error(
+			error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    s->in_fifo,
 			    strerror(errno)
@@ -166,13 +237,13 @@ slots_assert_fifos_exist(Slot *s)
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			pista_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			error("\"%s\" is not a FIFO\n", s->in_fifo);
 			errors++;
 			continue;
 		}
 	}
 	if (errors)
-		pista_fatal(
+		fatal(
 		    "Encountered errors with given file paths. See log.\n"
 		);
 }
@@ -206,7 +277,7 @@ slot_expire(Slot *s, struct timespec t, char expiry_character, char *buf)
 		    expiry_character,
 		    s->out_width
 		);
-		pista_warn("Slot expired: \"%s\"\n", s->in_fifo);
+		warn("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
 
@@ -235,7 +306,7 @@ slot_read(Slot *s, char *buf)
 	for (;;) {
 		switch (read(s->in_fd, &c, 1)) {
 		case -1:
-			pista_error(
+			error(
 			    "Failed to read: \"%s\". errno: %d, msg: %s\n",
 			    s->in_fifo,
 			    errno,
@@ -249,7 +320,7 @@ slot_read(Slot *s, char *buf)
 				return FAILURE;
 			}
 		case  0:
-			pista_debug("%s: End of FILE\n", s->in_fifo);
+			debug("%s: End of FILE\n", s->in_fifo);
 			s->out_pos_cur = s->out_pos_lo;
 			return END_OF_FILE;
 		case  1:
@@ -292,7 +363,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 	for (s = cfg->slots; s; s = s->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(s->in_fifo, &st) < 0) {
-			pista_error(
+			error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    s->in_fifo,
 			    strerror(errno)
@@ -301,19 +372,19 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			pista_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			error("\"%s\" is not a FIFO\n", s->in_fifo);
 			slot_set_error(s, buf);
 			continue;
 		}
 		if (s->in_fd < 0) {
-			pista_debug(
+			debug(
 			    "%s: closed. opening. in_fd: %d\n",
 			    s->in_fifo,
 			    s->in_fd
 			);
 			s->in_fd = open(s->in_fifo, O_RDONLY | O_NONBLOCK);
 		} else {
-			pista_debug(
+			debug(
 			    "%s: already openned. in_fd: %d\n",
 			    s->in_fifo,
 			    s->in_fd
@@ -321,23 +392,23 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 		}
 		if (s->in_fd == -1) {
 			/* TODO Consider backing off retries for failed slots */
-			pista_error("Failed to open \"%s\"\n", s->in_fifo);
+			error("Failed to open \"%s\"\n", s->in_fifo);
 			slot_set_error(s, buf);
 			continue;
 		}
-		pista_debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
+		debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
 		if (s->in_fd > maxfd)
 			maxfd = s->in_fd;
 		FD_SET(s->in_fd, &fds);
 	}
-	pista_debug("selecting...\n");
+	debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
-	pista_debug("ready: %d\n", ready);
+	debug("ready: %d\n", ready);
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	if (ready == -1) {
 		switch (errno) {
 		case EINTR:
-			pista_error(
+			error(
 			    "pselect interrupted: %d, errno: %d, msg: %s\n",
 			    ready,
 			    errno,
@@ -346,7 +417,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			/* TODO: Reconsider what to do here. */
 			return;
 		default:
-			pista_fatal(
+			fatal(
 			    "pselect failed: %d, errno: %d, msg: %s\n",
 			    ready,
 			    errno,
@@ -360,7 +431,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			if (s->in_fd < 0)
 				continue;
 			if (FD_ISSET(s->in_fd, &fds)) {
-				pista_debug("reading: %s\n", s->in_fifo);
+				debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
@@ -412,7 +483,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 void
 config_log(Config *cfg)
 {
-	pista_info(
+	info(
 	    "Config "
 	    "{"
 	    " interval = %f,"
@@ -540,7 +611,6 @@ void
 parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 {
 	char *param;
-	int log_level;
 
 	if (i >= argc)
 		usage("Option -l parameter is missing.\n");
@@ -554,7 +624,6 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 		    log_level,
 		    Debug
 		);
-	_pista_log_level = log_level;
 	opts_parse_any(cfg, argc, argv, i);
 }
 
@@ -628,7 +697,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		s->in_fifo      = n;
 		s->in_fd        = -1;
 		s->out_width    = atoi(w);
-		s->out_ttl      = pista_timespec_of_float(atof(t));
+		s->out_ttl      = timespec_of_float(atof(t));
 		s->in_last_read = in_last_read;
 		s->out_pos_lo   = cfg->buf_width;
 		s->out_pos_cur  = s->out_pos_lo;
@@ -639,7 +708,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		cfg->buf_width += s->out_width;
 		cfg->slot_count++;
 	} else {
-		pista_fatal("[memory] Allocation failure.");
+		fatal("[memory] Allocation failure.");
 	}
 	opts_parse_any(cfg, argc, argv, i);
 }
@@ -678,13 +747,13 @@ loop(Config *cfg, char *buf, Display *d)
 		td,  /* time interval measured   (t1 - t0) */
 		tc;  /* time interval correction (ti - td) when td < ti */
 
-	ti = pista_timespec_of_float(cfg->interval);
+	ti = timespec_of_float(cfg->interval);
 	while (running) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
 		slots_read(cfg, &ti, buf);
 		if (cfg->to_x_root) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
-				pista_fatal("XStoreName failed.\n");
+				fatal("XStoreName failed.\n");
 			XFlush(d);
 		} else {
 			puts(buf);
@@ -692,7 +761,7 @@ loop(Config *cfg, char *buf, Display *d)
 		}
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
-		pista_debug(
+		debug(
 		    "td {tv_sec = %ld, tv_nsec = %ld}\n",
 		    td.tv_sec,
 		    td.tv_nsec
@@ -703,7 +772,7 @@ loop(Config *cfg, char *buf, Display *d)
 			 * pipe more frequently than the interval.
 			 */
 			timespecsub(&ti, &td, &tc);
-			pista_sleep(&tc);
+			snooze(&tc);
 		}
 	}
 }
@@ -711,7 +780,7 @@ loop(Config *cfg, char *buf, Display *d)
 void
 terminate(int s)
 {
-	pista_debug("terminating due to signal %d\n", s);
+	debug("terminating due to signal %d\n", s);
 	running = 0;
 }
 
@@ -743,7 +812,7 @@ main(int argc, char *argv[])
 	config_stretch_for_separators(&cfg);
 	buf = buf_create(&cfg);
 	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
-		pista_fatal("XOpenDisplay failed with: %p\n", d);
+		fatal("XOpenDisplay failed with: %p\n", d);
 	loop(&cfg, buf, d);
 	slots_close(cfg.slots);
 	return EXIT_SUCCESS;
