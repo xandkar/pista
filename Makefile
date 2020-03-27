@@ -4,11 +4,11 @@ LDLIBS   := -lX11
 
 .PHONY: build clean
 
-build: khatus
+build: pista
 
-khatus: khlib_log.o khlib_time.o
+pista: pista_log.o pista_time.o
 
-khlib_time.o: khlib_log.o
+pista_time.o: pista_log.o
 
 clean:
-	rm -f khatus *.o
+	rm -f pista *.o

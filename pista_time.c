@@ -5,11 +5,11 @@
 #include <string.h>
 #include <time.h>
 
-#include "khlib_log.h"
-#include "khlib_time.h"
+#include "pista_log.h"
+#include "pista_time.h"
 
 struct timespec
-khlib_timespec_of_float(double n)
+pista_timespec_of_float(double n)
 {
 	double integral;
 	double fractional;
@@ -23,13 +23,13 @@ khlib_timespec_of_float(double n)
 }
 
 void
-khlib_sleep(struct timespec *t)
+pista_sleep(struct timespec *t)
 {
 	struct timespec remainder;
 
 	if (nanosleep(t, &remainder) < 0) {
 		if (errno == EINTR) {
-			khlib_warn(
+			pista_warn(
 			    "nanosleep interrupted. Remainder: "
 			    "{ tv_sec = %ld, tv_nsec = %ld }",
 			    remainder.tv_sec, remainder.tv_nsec);
@@ -37,7 +37,7 @@ khlib_sleep(struct timespec *t)
 			 * so not attempting to correct after an interruption.
 			 */
 		} else {
-			khlib_fatal("nanosleep: %s\n", strerror(errno));
+			pista_fatal("nanosleep: %s\n", strerror(errno));
 		}
 	}
 }

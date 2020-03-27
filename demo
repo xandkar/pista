@@ -30,7 +30,7 @@ counter_expired             c &
 counter_io_error            d &
 while :; do date          > e; sleep 1; done &
 
-./khatus \
+./pista \
     -s '|' \
     -l 0 \
     -i 0.5 \

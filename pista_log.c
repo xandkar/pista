@@ -2,6 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "khlib_log.h"
+#include "pista_log.h"
 
-LogLevel _khlib_log_level = Error;
+LogLevel _pista_log_level = Error;

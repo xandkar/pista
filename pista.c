@@ -15,8 +15,8 @@
 #include <X11/Xlib.h>
 
 #include "bsdtimespec.h"
-#include "khlib_log.h"
-#include "khlib_time.h"
+#include "pista_log.h"
+#include "pista_time.h"
 
 #define usage(...) { \
 	print_usage(); \
@@ -73,7 +73,7 @@ buf_create(Config *cfg)
 
 	buf = calloc(1, cfg->buf_width + 1);
 	if (buf == NULL)
-		khlib_fatal(
+		pista_fatal(
 		    "[memory] Failed to allocate buffer of %d bytes",
 		    cfg->buf_width
 		);
@@ -113,7 +113,7 @@ slots_rev(Slot *old)
 void
 slot_log(Slot *s)
 {
-	khlib_info("Slot "
+	pista_info("Slot "
 	    "{"
 	    " in_fifo = %s,"
 	    " in_fd = %d,"
@@ -157,7 +157,7 @@ slots_assert_fifos_exist(Slot *s)
 
 	for (; s; s = s->next) {
 		if (lstat(s->in_fifo, &st) < 0) {
-			khlib_error(
+			pista_error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    s->in_fifo,
 			    strerror(errno)
@@ -166,13 +166,13 @@ slots_assert_fifos_exist(Slot *s)
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			pista_error("\"%s\" is not a FIFO\n", s->in_fifo);
 			errors++;
 			continue;
 		}
 	}
 	if (errors)
-		khlib_fatal(
+		pista_fatal(
 		    "Encountered errors with given file paths. See log.\n"
 		);
 }
@@ -206,7 +206,7 @@ slot_expire(Slot *s, struct timespec t, char expiry_character, char *buf)
 		    expiry_character,
 		    s->out_width
 		);
-		khlib_warn("Slot expired: \"%s\"\n", s->in_fifo);
+		pista_warn("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
 
@@ -235,7 +235,7 @@ slot_read(Slot *s, char *buf)
 	for (;;) {
 		switch (read(s->in_fd, &c, 1)) {
 		case -1:
-			khlib_error(
+			pista_error(
 			    "Failed to read: \"%s\". errno: %d, msg: %s\n",
 			    s->in_fifo,
 			    errno,
@@ -249,7 +249,7 @@ slot_read(Slot *s, char *buf)
 				return FAILURE;
 			}
 		case  0:
-			khlib_debug("%s: End of FILE\n", s->in_fifo);
+			pista_debug("%s: End of FILE\n", s->in_fifo);
 			s->out_pos_cur = s->out_pos_lo;
 			return END_OF_FILE;
 		case  1:
@@ -292,7 +292,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 	for (s = cfg->slots; s; s = s->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(s->in_fifo, &st) < 0) {
-			khlib_error(
+			pista_error(
 			    "Cannot stat \"%s\". Error: %s\n",
 			    s->in_fifo,
 			    strerror(errno)
@@ -301,19 +301,19 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			continue;
 		}
 		if (!(st.st_mode & S_IFIFO)) {
-			khlib_error("\"%s\" is not a FIFO\n", s->in_fifo);
+			pista_error("\"%s\" is not a FIFO\n", s->in_fifo);
 			slot_set_error(s, buf);
 			continue;
 		}
 		if (s->in_fd < 0) {
-			khlib_debug(
+			pista_debug(
 			    "%s: closed. opening. in_fd: %d\n",
 			    s->in_fifo,
 			    s->in_fd
 			);
 			s->in_fd = open(s->in_fifo, O_RDONLY | O_NONBLOCK);
 		} else {
-			khlib_debug(
+			pista_debug(
 			    "%s: already openned. in_fd: %d\n",
 			    s->in_fifo,
 			    s->in_fd
@@ -321,23 +321,23 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 		}
 		if (s->in_fd == -1) {
 			/* TODO Consider backing off retries for failed slots */
-			khlib_error("Failed to open \"%s\"\n", s->in_fifo);
+			pista_error("Failed to open \"%s\"\n", s->in_fifo);
 			slot_set_error(s, buf);
 			continue;
 		}
-		khlib_debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
+		pista_debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
 		if (s->in_fd > maxfd)
 			maxfd = s->in_fd;
 		FD_SET(s->in_fd, &fds);
 	}
-	khlib_debug("selecting...\n");
+	pista_debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
-	khlib_debug("ready: %d\n", ready);
+	pista_debug("ready: %d\n", ready);
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	if (ready == -1) {
 		switch (errno) {
 		case EINTR:
-			khlib_error(
+			pista_error(
 			    "pselect interrupted: %d, errno: %d, msg: %s\n",
 			    ready,
 			    errno,
@@ -346,7 +346,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			/* TODO: Reconsider what to do here. */
 			return;
 		default:
-			khlib_fatal(
+			pista_fatal(
 			    "pselect failed: %d, errno: %d, msg: %s\n",
 			    ready,
 			    errno,
@@ -360,7 +360,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 			if (s->in_fd < 0)
 				continue;
 			if (FD_ISSET(s->in_fd, &fds)) {
-				khlib_debug("reading: %s\n", s->in_fifo);
+				pista_debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, buf)) {
 				/*
 				 * ### MESSAGE LOSS ###
@@ -412,7 +412,7 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 void
 config_log(Config *cfg)
 {
-	khlib_info(
+	pista_info(
 	    "Config "
 	    "{"
 	    " interval = %f,"
@@ -503,7 +503,7 @@ print_usage()
 	);
 	fprintf(
 	    stderr,
-	    "Example: %s -i 1 /dev/shm/khatus/khatus_sensor_x 4 10\n"
+	    "Example: %s -i 1 /dev/shm/pista/pista_sensor_x 4 10\n"
 	    "\n",
 	    argv0
 	);
@@ -554,7 +554,7 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 		    log_level,
 		    Debug
 		);
-	_khlib_log_level = log_level;
+	_pista_log_level = log_level;
 	opts_parse_any(cfg, argc, argv, i);
 }
 
@@ -628,7 +628,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		s->in_fifo      = n;
 		s->in_fd        = -1;
 		s->out_width    = atoi(w);
-		s->out_ttl      = khlib_timespec_of_float(atof(t));
+		s->out_ttl      = pista_timespec_of_float(atof(t));
 		s->in_last_read = in_last_read;
 		s->out_pos_lo   = cfg->buf_width;
 		s->out_pos_cur  = s->out_pos_lo;
@@ -639,7 +639,7 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 		cfg->buf_width += s->out_width;
 		cfg->slot_count++;
 	} else {
-		khlib_fatal("[memory] Allocation failure.");
+		pista_fatal("[memory] Allocation failure.");
 	}
 	opts_parse_any(cfg, argc, argv, i);
 }
@@ -678,13 +678,13 @@ loop(Config *cfg, char *buf, Display *d)
 		td,  /* time interval measured   (t1 - t0) */
 		tc;  /* time interval correction (ti - td) when td < ti */
 
-	ti = khlib_timespec_of_float(cfg->interval);
+	ti = pista_timespec_of_float(cfg->interval);
 	while (running) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
 		slots_read(cfg, &ti, buf);
 		if (cfg->to_x_root) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
-				khlib_fatal("XStoreName failed.\n");
+				pista_fatal("XStoreName failed.\n");
 			XFlush(d);
 		} else {
 			puts(buf);
@@ -692,7 +692,7 @@ loop(Config *cfg, char *buf, Display *d)
 		}
 		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
 		timespecsub(&t1, &t0, &td);
-		khlib_debug(
+		pista_debug(
 		    "td {tv_sec = %ld, tv_nsec = %ld}\n",
 		    td.tv_sec,
 		    td.tv_nsec
@@ -703,7 +703,7 @@ loop(Config *cfg, char *buf, Display *d)
 			 * pipe more frequently than the interval.
 			 */
 			timespecsub(&ti, &td, &tc);
-			khlib_sleep(&tc);
+			pista_sleep(&tc);
 		}
 	}
 }
@@ -711,7 +711,7 @@ loop(Config *cfg, char *buf, Display *d)
 void
 terminate(int s)
 {
-	khlib_debug("terminating due to signal %d\n", s);
+	pista_debug("terminating due to signal %d\n", s);
 	running = 0;
 }
 
@@ -743,7 +743,7 @@ main(int argc, char *argv[])
 	config_stretch_for_separators(&cfg);
 	buf = buf_create(&cfg);
 	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
-		khlib_fatal("XOpenDisplay failed with: %p\n", d);
+		pista_fatal("XOpenDisplay failed with: %p\n", d);
 	loop(&cfg, buf, d);
 	slots_close(cfg.slots);
 	return EXIT_SUCCESS;
