@@ -1,0 +1,50 @@
+pista
+=====
+
+Piped-status bar.
+
+Asynchronously reads lines from N FIFOs and routes to assigned slots on the bar.
+
+Each slot is given a TTL, after which, if there was no update - the slot is
+cleared - helping you spot broken sensors and not fool yourself with stale
+data.
+
+What is a sensor? What goes into a FIFO? Almost anything you want!
+
+Some of the sensors I use can be found in the `pista-sensors` repository.
+
+You would not be wrong to think of `pista` as `ii` for `dwm` status.
+
+
+Usage
+-----
+
+See `demo` for a concrete, short, working example.
+
+Intended for use with `dwm`, but can just as well be used for anything else
+with a textual status area (like `tmux`).
+
+For `dwm` there's an `-x` flag which causes the status to be sent directly to
+the X11 root window name (which is what `dwm` uses as its status):
+
+    pista -x a 10 15 b 20 5 &
+
+For other things you'll need to route `pista`'s `stdout` output lines to the
+desired location. Let's say `tmux` for example:
+
+1. Run `pista` from somewhere (like `~/.xinitrc`):
+
+    pista a 10 15 b 20 5 | while read line; do echo "$line" > ~/.status; done &
+
+2. Then in `~/.tmux.conf`
+
+    set -g status-right "#(cat ~/.status)"
+
+
+Links
+-----
+
+- [pista-sensors](https://git.xandkar.net/?p=pista-sensors.git)
+- [dwm](https://dwm.suckless.org/)
+- [ii](https://tools.suckless.org/ii/)
+- [tmux](https://tmux.github.io/)
