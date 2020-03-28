@@ -2,24 +2,30 @@
 
 set -e
 
-rm -f  a b c d e
-mkfifo a b c d e
+rm -f  a b c d e f
+mkfifo a b c d e f
 
 mem_used() {
     free -h | awk '/^Mem:/ {print $3; exit 0}'
 }
 
+loadavg() {
+    cat /proc/loadavg
+}
+
 while :; do echo $((i++)) > a; sleep 1; done &
 while :; do mem_used      > b; sleep 1; done &
-echo  'will expire'       > c &
-(echo 'will error'        > d; sleep 1; rm d) &
-while :; do date          > e; sleep 1; done &
+while :; do loadavg       > c; sleep 1; done &
+echo  'will expire'       > d &
+(echo 'will error'        > e; sleep 1; rm e) &
+while :; do date          > f; sleep 1; done &
 
 ./pista \
     -l 0 \
     -i 0.5 \
     a  5 2 \
     b 10 2 \
-    c 15 2 \
-    d 15 5 \
-    e 20 2
+    c 30 2 \
+    d 15 2 \
+    e 15 5 \
+    f 20 2

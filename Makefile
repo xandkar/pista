@@ -10,4 +10,4 @@ demo: pista
 	./demo
 
 clean:
-	rm -f pista a b c d e
+	rm -f pista a b c d e f
