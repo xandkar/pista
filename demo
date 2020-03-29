@@ -2,11 +2,15 @@
 
 set -e
 
-rm -f  a b c d e f
-mkfifo a b c d e f
+rm -f  a b c d e f g
+mkfifo a b c d e f g
 
 mem_used() {
-    free -h | awk '/^Mem:/ {print $3; exit 0}'
+    free -h | awk '/^Mem:/ {printf "%s / %s\n", $3, $2; exit 0}'
+}
+
+disk_rem() {
+    df -h / | awk 'NR == 2 {printf "%s / %s\n", $3, $2; exit 0}'
 }
 
 loadavg() {
@@ -15,17 +19,19 @@ loadavg() {
 
 while :; do echo $((i++)) > a; sleep 1; done &
 while :; do mem_used      > b; sleep 1; done &
-while :; do loadavg       > c; sleep 1; done &
-echo  'will expire'       > d &
-(echo 'will error'        > e; sleep 1; rm e) &
-while :; do date          > f; sleep 1; done &
+while :; do disk_rem      > c; sleep 1; done &
+while :; do loadavg       > d; sleep 1; done &
+echo  'will expire'       > e &
+(echo 'will error'        > f; sleep 1; rm f) &
+while :; do date          > g; sleep 1; done &
 
 ./pista \
     -l 0 \
     -i 0.5 \
     a  5 2 \
-    b 10 2 \
-    c 30 2 \
-    d 15 2 \
+    b 15 2 \
+    c 15 2 \
+    d 30 2 \
     e 15 5 \
-    f 20 2
+    f 15 2 \
+    g 20 2
