@@ -94,15 +94,15 @@ enum LogLevel {
 };
 
 
-char *argv0 = NULL;
-int running = 1;
-enum LogLevel log_level = Error;
+static char *argv0 = NULL;
+static int running = 1;
+static enum LogLevel log_level = Error;
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
 
-struct timespec
-timespec_of_float(double n)
+static struct timespec
+timespec_of_float(const double n)
 {
 	double integral;
 	double fractional;
@@ -115,8 +115,8 @@ timespec_of_float(double n)
 	return t;
 }
 
-void
-snooze(struct timespec *t)
+static void
+snooze(const struct timespec *t)
 {
 	struct timespec remainder;
 
@@ -135,7 +135,7 @@ snooze(struct timespec *t)
 	}
 }
 
-char *
+static char *
 buf_create(Config *cfg)
 {
 	int seplen;
@@ -166,7 +166,7 @@ buf_create(Config *cfg)
 	return buf;
 }
 
-Slot *
+static Slot *
 slots_rev(Slot *old)
 {
 	Slot *tmp = NULL;
@@ -181,7 +181,7 @@ slots_rev(Slot *old)
 	return new;
 }
 
-void
+static void
 slot_log(Slot *s)
 {
 	info("Slot "
@@ -210,7 +210,7 @@ slot_log(Slot *s)
 	);
 }
 
-void
+static void
 slots_log(Slot *head)
 {
 	Slot *s = head;
@@ -220,7 +220,7 @@ slots_log(Slot *head)
 	}
 }
 
-void
+static void
 slots_assert_fifos_exist(Slot *s)
 {
 	struct stat st;
@@ -248,7 +248,7 @@ slots_assert_fifos_exist(Slot *s)
 		);
 }
 
-void
+static void
 slot_close(Slot *s)
 {
 	close(s->in_fd);
@@ -256,7 +256,7 @@ slot_close(Slot *s)
 	s->out_pos_cur  = s->out_pos_lo;
 }
 
-void
+static void
 slots_close(Slot *s)
 {
 	for (; s; s = s->next)
@@ -265,8 +265,13 @@ slots_close(Slot *s)
 }
 
 
-void
-slot_expire(Slot *s, struct timespec t, char expiry_character, char *buf)
+static void
+slot_expire(
+	const Slot *s,
+	const struct timespec t,
+	const char expiry_character,
+	char *buf
+)
 {
 	struct timespec td;
 
@@ -281,7 +286,7 @@ slot_expire(Slot *s, struct timespec t, char expiry_character, char *buf)
 	}
 }
 
-void
+static void
 slot_set_error(Slot *s, char *buf)
 {
 	char *b;
@@ -297,7 +302,7 @@ slot_set_error(Slot *s, char *buf)
 	memset(b + i, '_', s->out_width - i);
 }
 
-enum read_status
+static enum read_status
 slot_read(Slot *s, char *buf)
 {
 	char c;  /* Character read. */
@@ -349,8 +354,8 @@ slot_read(Slot *s, char *buf)
 	}
 }
 
-void
-slots_read(Config *cfg, struct timespec *ti, char *buf)
+static void
+slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -480,8 +485,8 @@ slots_read(Config *cfg, struct timespec *ti, char *buf)
 	assert(ready == 0);
 }
 
-void
-config_log(Config *cfg)
+static void
+config_log(const Config *cfg)
 {
 	info(
 	    "Config "
@@ -500,7 +505,7 @@ config_log(Config *cfg)
 	slots_log(cfg->slots);
 }
 
-void
+static void
 config_stretch_for_separators(Config *cfg)
 {
 	int seplen = strlen(cfg->separator);
@@ -519,8 +524,8 @@ config_stretch_for_separators(Config *cfg)
 	cfg->buf_width += (seplen * (nslots - 1));
 }
 
-int
-is_pos_num(char *str)
+static int
+is_pos_num(const char *str)
 {
 	while (*str != '\0')
 		if (!isdigit(*(str++)))
@@ -528,8 +533,8 @@ is_pos_num(char *str)
 	return 1;
 }
 
-int
-is_decimal(char *str)
+static int
+is_decimal(const char *str)
 {
 	char c;
 	int seen = 0;
@@ -544,7 +549,7 @@ is_decimal(char *str)
 	return 1;
 }
 
-void
+static void
 print_usage()
 {
 	assert(argv0);
@@ -581,10 +586,10 @@ print_usage()
 }
 
 /* For mutually-recursive calls. */
-void opts_parse_any(Config *, int, char *[], int);
+static void opts_parse_any(Config *, int, char *[], int);
 
-void
-parse_opts_opt_i(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_opt_i(Config *cfg, const int argc, char *argv[], int i)
 {
 	char *param;
 
@@ -597,8 +602,8 @@ parse_opts_opt_i(Config *cfg, int argc, char *argv[], int i)
 	opts_parse_any(cfg, argc, argv, i);
 }
 
-void
-parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_opt_s(Config *cfg, const int argc, char *argv[], int i)
 {
 	if (i >= argc)
 		usage("Option -s parameter is missing.\n");
@@ -607,8 +612,8 @@ parse_opts_opt_s(Config *cfg, int argc, char *argv[], int i)
 	opts_parse_any(cfg, argc, argv, ++i);
 }
 
-void
-parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_opt_l(Config *cfg, const int argc, char *argv[], int i)
 {
 	char *param;
 
@@ -627,8 +632,8 @@ parse_opts_opt_l(Config *cfg, int argc, char *argv[], int i)
 	opts_parse_any(cfg, argc, argv, i);
 }
 
-void
-parse_opts_opt_e(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_opt_e(Config *cfg, const int argc, char *argv[], int i)
 {
 	if (i >= argc)
 		usage("Option -e parameter is missing.\n");
@@ -636,8 +641,8 @@ parse_opts_opt_e(Config *cfg, int argc, char *argv[], int i)
 	opts_parse_any(cfg, argc, argv, i);
 }
 
-void
-parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_opt(Config *cfg, const int argc, char *argv[], int i)
 {
 	switch (argv[i][1]) {
 	case 'i':
@@ -665,8 +670,8 @@ parse_opts_opt(Config *cfg, int argc, char *argv[], int i)
 	}
 }
 
-void
-parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
+static void
+parse_opts_spec(Config *cfg, const int argc, char *argv[], int i)
 {
 	char *n;
 	char *w;
@@ -713,8 +718,8 @@ parse_opts_spec(Config *cfg, int argc, char *argv[], int i)
 	opts_parse_any(cfg, argc, argv, i);
 }
 
-void
-opts_parse_any(Config *cfg, int argc, char *argv[], int i)
+static void
+opts_parse_any(Config *cfg, const int argc, char *argv[], int i)
 {
 	if (i < argc) {
 		switch (argv[i][0]) {
@@ -727,8 +732,8 @@ opts_parse_any(Config *cfg, int argc, char *argv[], int i)
 	}
 }
 
-void
-opts_parse(Config *cfg, int argc, char *argv[])
+static void
+opts_parse(Config *cfg, const int argc, char *argv[])
 {
 	opts_parse_any(cfg, argc, argv, 1);
 	cfg->slots = slots_rev(cfg->slots);
@@ -737,8 +742,8 @@ opts_parse(Config *cfg, int argc, char *argv[])
 		usage("No slot specs were given!\n");
 }
 
-void
-loop(Config *cfg, char *buf, Display *d)
+static void
+loop(const Config *cfg, char *buf, Display *d)
 {
 	struct timespec
 		t0,  /* time stamp. before reading slots */
@@ -777,15 +782,15 @@ loop(Config *cfg, char *buf, Display *d)
 	}
 }
 
-void
-terminate(int s)
+static void
+terminate(const int s)
 {
 	debug("terminating due to signal %d\n", s);
 	running = 0;
 }
 
 int
-main(int argc, char *argv[])
+main(const int argc, char *argv[])
 {
 	argv0 = argv[0];
 
