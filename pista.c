@@ -85,7 +85,7 @@ enum read_status {
 	FAILURE
 };
 
-enum LogLevel {
+enum log_level {
 	Nothing,
 	Error,
 	Warn,
@@ -96,7 +96,7 @@ enum LogLevel {
 
 static char *argv0 = NULL;
 static int running = 1;
-static enum LogLevel log_level = Error;
+static enum log_level log_level = Error;
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
