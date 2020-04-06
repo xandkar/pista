@@ -31,8 +31,6 @@ data.
 
 What is a sensor? What goes into a FIFO? Almost anything you want!
 
-Some of the sensors I use can be found in the `pista-sensors` repository.
-
 You would not be wrong to think of `pista` as `ii` for `dwm` status.
 
 
@@ -64,7 +62,6 @@ desired location. Let's say `tmux` for example:
 Links
 -----
 
-- [pista-sensors](https://git.xandkar.net/?p=pista-sensors.git)
 - [dwm](https://dwm.suckless.org/)
 - [ii](https://tools.suckless.org/ii/)
 - [tmux](https://tmux.github.io/)
