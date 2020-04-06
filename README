@@ -3,7 +3,27 @@ pista
 
 Piped-status bar.
 
-Asynchronously reads lines from N FIFOs and routes to assigned slots on the bar.
+Asynchronously reads lines from N FIFOs and routes to corresponding slots on
+the bar:
+
+    +----------------+-----------------+---------------------+----------------+
+    |                |                 |                     |                |
+    +----------------+-----------------+---------------------+----------------+
+            ^                ^                    ^                   ^
+            |                |                    |                   |
+           +-+              +-+                  +-+                 +-+
+           |F|              |F|                  |F|                 |F|
+           |I|              |I|                  |I|                 |I|
+           |F|              |F|                  |F|                 |F|
+           |O|              |O|                  |O|                 |O|
+           | |              | |                  | |                 | |
+           |1|              |2|                  |3|                 |4|
+           | |              | |                  | |                 | |
+           +-+              +-+                  +-+                 +-+
+            ^                ^                    ^                   ^
+            |                |                    |                   |
+         process1         process2             process3            process4
+
 
 Each slot is given a TTL, after which, if there was no update - the slot is
 cleared - helping you spot broken sensors and not fool yourself with stale
