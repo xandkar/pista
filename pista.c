@@ -19,22 +19,22 @@
 
 
 #define debug(...) \
-	if (log_level >= Debug) { \
+	if (log_level >= DEBUG) { \
 		fprintf(stderr, "[debug] " __VA_ARGS__); \
 		fflush(stderr); \
 	}
 #define info(...) \
-	if (log_level >= Info ) { \
+	if (log_level >= INFO ) { \
 		fprintf(stderr, "[info] "  __VA_ARGS__); \
 		fflush(stderr); \
 	}
 #define warn(...) \
-	if (log_level >= Warn ) { \
+	if (log_level >= WARN ) { \
 		fprintf(stderr, "[warn] "  __VA_ARGS__); \
 		fflush(stderr); \
 	}
 #define error(...) \
-	if (log_level >= Error) { \
+	if (log_level >= ERROR) { \
 		fprintf(stderr, "[error] " __VA_ARGS__); \
 		fflush(stderr); \
 	}
@@ -86,17 +86,17 @@ enum read_status {
 };
 
 enum log_level {
-	Nothing,
-	Error,
-	Warn,
-	Info,
-	Debug
+	NOTHING,
+	ERROR,
+	WARN,
+	INFO,
+	DEBUG
 };
 
 
 static char *argv0 = NULL;
 static int running = 1;
-static enum log_level log_level = Error;
+static enum log_level log_level = ERROR;
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
 
@@ -574,8 +574,8 @@ print_usage()
 	    "(* Character with which to fill the slot upon expiration. *)\n"
 	    "\n",
 	    argv0,
-	    Nothing,
-	    Debug
+	    NOTHING,
+	    DEBUG
 	);
 	fprintf(
 	    stderr,
@@ -623,11 +623,11 @@ parse_opts_opt_l(Config *cfg, const int argc, char *argv[], int i)
 	if (!is_pos_num(param))
 		usage("Option -l parameter is invalid: \"%s\"\n", param);
 	log_level = atoi(param);
-	if (log_level > Debug)
+	if (log_level > DEBUG)
 		usage(
 		    "Option -l value (%d) exceeds maximum (%d)\n",
 		    log_level,
-		    Debug
+		    DEBUG
 		);
 	opts_parse_any(cfg, argc, argv, i);
 }
