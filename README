@@ -6,23 +6,24 @@ Piped-status bar.
 Asynchronously reads lines from N FIFOs and routes to corresponding slots on
 the bar:
 
-    +----------------+-----------------+---------------------+----------------+
-    |                |                 |                     |                |
-    +----------------+-----------------+---------------------+----------------+
-            ^                ^                    ^                   ^
-            |                |                    |                   |
-           +-+              +-+                  +-+                 +-+
-           |F|              |F|                  |F|                 |F|
-           |I|              |I|                  |I|                 |I|
-           |F|              |F|                  |F|                 |F|
-           |O|              |O|                  |O|                 |O|
-           | |              | |                  | |                 | |
-           |1|              |2|                  |3|                 |4|
-           | |              | |                  | |                 | |
-           +-+              +-+                  +-+                 +-+
-            ^                ^                    ^                   ^
-            |                |                    |                   |
-         process1         process2             process3            process4
+    b +----------------+----------------+- ... ---+----------------+
+    a | slot_1         | slot_2         |         | slot_N         |
+    r +----------------+----------------+- ... ---+----------------+
+        ^                ^                          ^
+        |                |                          |
+       +-+              +-+                        +-+
+       | |              | |                        | |
+       |F|              |F|                        |F|
+       |I|              |I|                        |I|
+       |F|              |F|                        |F|
+       |O|              |O|                        |O|
+       | |              | |                        | |
+       |1|              |2|                        |N|
+       | |              | |                        | |
+       +-+              +-+                        +-+
+        ^                ^                          ^
+        |                |                          |
+    process_1        process_2             ...  process_N
 
 
 Each slot is given a TTL, after which, if there was no update - the slot is
