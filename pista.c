@@ -70,9 +70,9 @@ struct Slot {
 typedef struct Config Config;
 struct Config {
 	double interval;
-	char * separator;
+	char  *separator;
 	char   expiry_character;
-	Slot * slots;
+	Slot  *slots;
 	int    slot_count;
 	int    buf_width;
 	int    to_x_root;
