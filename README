@@ -46,28 +46,28 @@ What is a sensor? What goes into a FIFO? Almost anything you want!
 USAGE
 -----
 
-	pista [OPTION ...] SPEC [SPEC ...]
+    pista [OPTION ...] SPEC [SPEC ...]
 
-	  SPEC       = FILE_PATH DATA_WIDTH DATA_TTL
-	  FILE_PATH  = string
-	  DATA_WIDTH = int    /* (positive) number of characters */
-	  DATA_TTL   = float  /* (positive) number of seconds */
-	  OPTION     = -i INTERVAL
-				 | -s SEPARATOR
-				 | -x     /* Output to X root window */
-				 | -l LOG_LEVEL
-				 | -e EXPIRY_CHARACTER
-	  SEPARATOR  = string
-	  INTERVAL   = float  /* (positive) number of seconds */
-	  LOG_LEVEL  = int    /* 0 (nothing)
+      SPEC       = FILE_PATH DATA_WIDTH DATA_TTL
+      FILE_PATH  = string
+      DATA_WIDTH = int    /* (positive) number of characters */
+      DATA_TTL   = float  /* (positive) number of seconds */
+      OPTION     = -i INTERVAL
+                 | -s SEPARATOR
+                 | -x     /* Output to X root window */
+                 | -l LOG_LEVEL
+                 | -e EXPIRY_CHARACTER
+      SEPARATOR  = string
+      INTERVAL   = float  /* (positive) number of seconds */
+      LOG_LEVEL  = int    /* 0 (nothing)
                            * 1 (error)
                            * 2 (warn)
                            * 3 (info)
                            * 4 (debug)
-					       */
-	  EXPIRY_CHARACTER = string  /* Character with which to fill the slot
-								  * upon expiration.
-								  */
+                           */
+      EXPIRY_CHARACTER = string  /* Character with which to fill the slot
+                                  * upon expiration.
+                                  */
 
 EXAMPLES
 --------
