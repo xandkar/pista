@@ -1,29 +1,39 @@
-pista
-=====
+[][][]  []  [][][] [][][] [][][]
+[]  []      []       []   []  []
+[][][]  []  [][][]   []   [][][]
+[]      []      []   []   []  []
+[]      []  [][][]   []   []  []
 
-Piped-status bar.
+Piped status: the ii of status bars!
 
-Asynchronously reads lines from N FIFOs and routes to corresponding slots on
+
+DESCRIPTION
+-----------
+
+Intended for use with dwm, but can just as well be adopted to anything else
+with a textual status area (like tmux).
+
+Asynchronously reads lines from N FIFOs and routes to N corresponding slots on
 the bar:
 
-    b +----------------+----------------+- ... ---+----------------+
-    a | slot_1         | slot_2         |         | slot_N         |
-    r +----------------+----------------+- ... ---+----------------+
-        ^                ^                          ^
-        |                |                          |
-       +-+              +-+                        +-+
-       | |              | |                        | |
-       |F|              |F|                        |F|
-       |I|              |I|                        |I|
-       |F|              |F|                        |F|
-       |O|              |O|                        |O|
-       | |              | |                        | |
-       |1|              |2|                        |N|
-       | |              | |                        | |
-       +-+              +-+                        +-+
-        ^                ^                          ^
-        |                |                          |
-    process_1        process_2             ...  process_N
+    b +--------------+--------------+- ... ---+-------------+
+    a | slot_1       | slot_2       |         | slot_N      |
+    r +--------------+--------------+- ... ---+-------------+
+        ^              ^                        ^
+        |              |                        |
+       +-+            +-+                      +-+
+       | |            | |                      | |
+       |F|            |F|                      |F|
+       |I|            |I|                      |I|
+       |F|            |F|                      |F|
+       |O|            |O|                      |O|
+       | |            | |                      | |
+       |1|            |2|                      |N|
+       | |            | |                      | |
+       +-+            +-+                      +-+
+        ^              ^                        ^
+        |              |                        |
+    process_1      process_2           ...  process_N
 
 
 Each slot is given a TTL, after which, if there was no update - the slot is
@@ -32,35 +42,64 @@ data.
 
 What is a sensor? What goes into a FIFO? Almost anything you want!
 
-You would not be wrong to think of `pista` as `ii` for `dwm` status.
 
-
-Usage
+USAGE
 -----
 
-See `demo` for a concrete, short, working example.
+	pista [OPTION ...] SPEC [SPEC ...]
 
-Intended for use with `dwm`, but can just as well be used for anything else
-with a textual status area (like `tmux`).
+	  SPEC       = FILE_PATH DATA_WIDTH DATA_TTL
+	  FILE_PATH  = string
+	  DATA_WIDTH = int    /* (positive) number of characters */
+	  DATA_TTL   = float  /* (positive) number of seconds */
+	  OPTION     = -i INTERVAL
+				 | -s SEPARATOR
+				 | -x     /* Output to X root window */
+				 | -l LOG_LEVEL
+				 | -e EXPIRY_CHARACTER
+	  SEPARATOR  = string
+	  INTERVAL   = float  /* (positive) number of seconds */
+	  LOG_LEVEL  = int    /* 0 (nothing)
+                           * 1 (error)
+                           * 2 (warn)
+                           * 3 (info)
+                           * 4 (debug)
+					       */
+	  EXPIRY_CHARACTER = string  /* Character with which to fill the slot
+								  * upon expiration.
+								  */
 
-For `dwm` there's an `-x` flag which causes the status to be sent directly to
-the X11 root window name (which is what `dwm` uses as its status):
+EXAMPLES
+--------
+
+See demo file for a working example.
+
+### dwm
+
+For dwm there's an -x flag which causes the status to be sent directly to
+the X11 root window name (which is what dwm uses as its status):
 
     pista -x a 10 15 b 20 5 &
 
-For other things you'll need to route `pista`'s `stdout` output lines to the
-desired location. Let's say `tmux` for example:
+### other
 
-1. Run `pista` from somewhere (like `~/.xinitrc`):
+For other things you'll need to route pista's stdout output lines to the
+desired location.
+
+#### tmux
+
+Let's say tmux for example:
+
+1. Run pista from somewhere (like ~/.xinitrc):
 
     pista a 10 15 b 20 5 | while read line; do echo "$line" > ~/.status; done &
 
-2. Then in `~/.tmux.conf`
+2. Then in ~/.tmux.conf
 
     set -g status-right "#(cat ~/.status)"
 
 
-Links
+LINKS
 -----
 
 - [dwm](https://dwm.suckless.org/)
