@@ -20,36 +20,36 @@
 
 
 #define debug(...) \
-	if (log_level >= DEBUG) { \
+	do {if (log_level >= DEBUG) { \
 		fprintf(stderr, "[debug] " __VA_ARGS__); \
 		fflush(stderr); \
-	}
+	}} while (0)
 #define info(...) \
-	if (log_level >= INFO ) { \
+	do {if (log_level >= INFO ) { \
 		fprintf(stderr, "[info] "  __VA_ARGS__); \
 		fflush(stderr); \
-	}
+	}} while (0)
 #define warn(...) \
-	if (log_level >= WARN ) { \
+	do {if (log_level >= WARN ) { \
 		fprintf(stderr, "[warn] "  __VA_ARGS__); \
 		fflush(stderr); \
-	}
+	}} while (0)
 #define error(...) \
-	if (log_level >= ERROR) { \
+	do {if (log_level >= ERROR) { \
 		fprintf(stderr, "[error] " __VA_ARGS__); \
 		fflush(stderr); \
-	}
+	}} while (0)
 #define fatal(...) \
-	{ \
+	do { \
 		fprintf(stderr, "[fatal] " __VA_ARGS__); \
 		exit(EXIT_FAILURE); \
-	}
+	} while (0)
 #define usage(...) \
-	{ \
+	do { \
 		print_usage(); \
 		fprintf(stderr, "Error:\n    " __VA_ARGS__); \
 		exit(EXIT_FAILURE); \
-	}
+	} while (0)
 
 #define ERRMSG "ERROR"
 
@@ -122,7 +122,7 @@ snooze(const struct timespec *t)
 	struct timespec remainder;
 
 	if (nanosleep(t, &remainder) < 0) {
-		if (errno == EINTR) {
+		if (errno == EINTR)
 			warn(
 			    "nanosleep interrupted. Remainder: "
 			    "{ tv_sec = %ld, tv_nsec = %ld }",
@@ -130,9 +130,8 @@ snooze(const struct timespec *t)
 			/* No big deal if we occasionally sleep less,
 			 * so not attempting to correct after an interruption.
 			 */
-		} else {
+		else
 			fatal("nanosleep: %s\n", strerror(errno));
-		}
 	}
 }
 
