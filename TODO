@@ -1,3 +1,5 @@
-- [ ] Dynamic add/remove slots (needs ctrl)
-- [ ] Dynamic config setting (needs ctrl)
+- [ ] (needs ctrl) Runtime swap   slots
+- [ ] (needs ctrl) Runtime remove slot
+- [ ] (needs ctrl) Runtime add    slot
+- [ ] (needs ctrl) Runtime config settingl
 - [ ] (id ctrl) Control FIFO and command interpreter
