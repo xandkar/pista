@@ -15,6 +15,7 @@
 
 #include <X11/Xlib.h>
 
+#include "arg.h"
 #include "bsdtimespec.h"
 
 
@@ -94,7 +95,7 @@ enum log_level {
 };
 
 
-static char *argv0 = NULL;
+char *argv0 = NULL;  /* set by arg.h */
 static int running = 1;
 static enum log_level log_level = ERROR;
 static const char errmsg[] = ERRMSG;
@@ -164,6 +165,39 @@ buf_create(Config *cfg)
 		}
 	}
 	return buf;
+}
+
+static void
+slot_create(Config *c, const char *fifo0, const unsigned int width, const float ttl)
+{
+	Slot *s;
+	struct timespec in_last_read;
+	char *fifo1;
+	const int fifo_len = strlen(fifo0) + 1;
+
+	in_last_read.tv_sec  = 0;
+	in_last_read.tv_nsec = 0;
+	s = calloc(1, sizeof(struct Slot));
+	fifo1 = calloc(fifo_len, sizeof(char));
+
+	if (s && fifo1) {
+		strncpy(fifo1, fifo0, fifo_len);
+		s->in_fifo      = fifo1;
+		s->in_fd        = -1;
+		s->out_width    = width;
+		s->out_ttl      = timespec_of_float(ttl);
+		s->in_last_read = in_last_read;
+		s->out_pos_lo   = c->buf_width;
+		s->out_pos_cur  = s->out_pos_lo;
+		s->out_pos_hi   = s->out_pos_lo + s->out_width - 1;
+		s->next		= c->slots;
+
+		c->slots        = s;
+		c->buf_width += s->out_width;
+		c->slot_count++;
+	} else {
+		fatal("[memory] Failed to allocate slot \"%s\"\n", fifo0);
+	}
 }
 
 static Slot *
@@ -585,163 +619,6 @@ print_usage()
 	);
 }
 
-/* For mutually-recursive calls. */
-static void opts_parse_any(Config *, int, char *[], int);
-
-static void
-parse_opts_opt_i(Config *cfg, const int argc, char *argv[], int i)
-{
-	char *param;
-
-	if (i >= argc)
-		usage("Option -i parameter is missing.\n");
-	param = argv[i++];
-	if (!is_decimal(param))
-		usage("Option -i parameter is invalid: \"%s\"\n", param);
-	cfg->interval = atof(param);
-	opts_parse_any(cfg, argc, argv, i);
-}
-
-static void
-parse_opts_opt_s(Config *cfg, const int argc, char *argv[], int i)
-{
-	if (i >= argc)
-		usage("Option -s parameter is missing.\n");
-	cfg->separator = calloc((strlen(argv[i]) + 1), sizeof(char));
-	strcpy(cfg->separator, argv[i]);
-	opts_parse_any(cfg, argc, argv, ++i);
-}
-
-static void
-parse_opts_opt_l(Config *cfg, const int argc, char *argv[], int i)
-{
-	char *param;
-
-	if (i >= argc)
-		usage("Option -l parameter is missing.\n");
-	param = argv[i++];
-	if (!is_pos_num(param))
-		usage("Option -l parameter is invalid: \"%s\"\n", param);
-	log_level = atoi(param);
-	if (log_level > DEBUG)
-		usage(
-		    "Option -l value (%d) exceeds maximum (%d)\n",
-		    log_level,
-		    DEBUG
-		);
-	opts_parse_any(cfg, argc, argv, i);
-}
-
-static void
-parse_opts_opt_e(Config *cfg, const int argc, char *argv[], int i)
-{
-	if (i >= argc)
-		usage("Option -e parameter is missing.\n");
-	cfg->expiry_character = argv[i++][0];
-	opts_parse_any(cfg, argc, argv, i);
-}
-
-static void
-parse_opts_opt(Config *cfg, const int argc, char *argv[], int i)
-{
-	switch (argv[i][1]) {
-	case 'i':
-		/* TODO: Generic set_int */
-		parse_opts_opt_i(cfg, argc, argv, ++i);
-		break;
-	case 's':
-		/* TODO: Generic set_str */
-		parse_opts_opt_s(cfg, argc, argv, ++i);
-		break;
-	case 'x':
-		cfg->to_x_root = 1;
-		opts_parse_any(cfg, argc, argv, ++i);
-		break;
-	case 'l':
-		/* TODO: Generic set_int */
-		parse_opts_opt_l(cfg, argc, argv, ++i);
-		break;
-	case 'e':
-		/* TODO: Generic set_str */
-		parse_opts_opt_e(cfg, argc, argv, ++i);
-		break;
-	default :
-		usage("Option \"%s\" is invalid\n", argv[i]);
-	}
-}
-
-static void
-parse_opts_spec(Config *cfg, const int argc, char *argv[], int i)
-{
-	char *n;
-	char *w;
-	char *t;
-	struct timespec in_last_read;
-	Slot *s;
-
-	if ((i + 3) > argc)
-		usage(
-		    "[spec] Parameter(s) missing for fifo \"%s\".\n",
-		    argv[i]
-		);
-
-	n = argv[i++];
-	w = argv[i++];
-	t = argv[i++];
-
-	if (!is_pos_num(w))
-		usage("[spec] Invalid width: \"%s\", for fifo \"%s\"\n", w, n);
-	if (!is_decimal(t))
-		usage("[spec] Invalid TTL: \"%s\", for fifo \"%s\"\n", t, n);
-
-	in_last_read.tv_sec  = 0;
-	in_last_read.tv_nsec = 0;
-	s = calloc(1, sizeof(struct Slot));
-
-	if (s) {
-		s->in_fifo      = n;
-		s->in_fd        = -1;
-		s->out_width    = atoi(w);
-		s->out_ttl      = timespec_of_float(atof(t));
-		s->in_last_read = in_last_read;
-		s->out_pos_lo   = cfg->buf_width;
-		s->out_pos_cur  = s->out_pos_lo;
-		s->out_pos_hi   = s->out_pos_lo + s->out_width - 1;
-		s->next		= cfg->slots;
-
-		cfg->slots        = s;
-		cfg->buf_width += s->out_width;
-		cfg->slot_count++;
-	} else {
-		fatal("[memory] Allocation failure.");
-	}
-	opts_parse_any(cfg, argc, argv, i);
-}
-
-static void
-opts_parse_any(Config *cfg, const int argc, char *argv[], int i)
-{
-	if (i < argc) {
-		switch (argv[i][0]) {
-		case '-':
-			parse_opts_opt(cfg, argc, argv, i);
-			break;
-		default :
-			parse_opts_spec(cfg, argc, argv, i);
-		}
-	}
-}
-
-static void
-opts_parse(Config *cfg, const int argc, char *argv[])
-{
-	opts_parse_any(cfg, argc, argv, 1);
-	cfg->slots = slots_rev(cfg->slots);
-	config_log(cfg);
-	if (cfg->slots == NULL)
-		usage("No slot specs were given!\n");
-}
-
 static void
 loop(const Config *cfg, char *buf, Display *d)
 {
@@ -790,10 +667,8 @@ terminate(const int s)
 }
 
 int
-main(const int argc, char *argv[])
+main(int argc, char *argv[])
 {
-	argv0 = argv[0];
-
 	Config cfg = {
 		.interval    = 1.0,
 		.separator   = "|",
@@ -803,21 +678,87 @@ main(const int argc, char *argv[])
 		.buf_width   = 0,
 		.to_x_root   = 0,
 	};
+	int i;
+	char *tmpstr;
+	int   tmpint;
+	char *fifo;
+	char *width;
+	char *ttl;
 	char *buf;
 	Display *d = NULL;
 	struct sigaction sa;
+
+	ARGBEGIN {
+	case 'i':
+		tmpstr = EARGF(print_usage());
+		if (!is_decimal(tmpstr))
+			usage("Option -i parameter invalid: \"%s\"\n", tmpstr);
+		cfg.interval = atof(tmpstr);
+		break;
+	case 's':
+		tmpstr = EARGF(print_usage());
+		tmpint = strlen(tmpstr) + 1;
+		cfg.separator = calloc(tmpint, sizeof(char));
+		strncpy(cfg.separator, tmpstr, tmpint);
+		break;
+	case 'x':
+		cfg.to_x_root = 1;
+		break;
+	case 'l':
+		tmpstr = EARGF(print_usage());
+		if (!is_pos_num(tmpstr))
+			usage("Option -l parameter invalid: \"%s\"\n", tmpstr);
+		tmpint = atoi(tmpstr);
+		if (tmpint > DEBUG)
+			usage(
+			    "Option -l value (%d) exceeds maximum (%d)\n",
+			    tmpint,
+			    DEBUG
+			);
+		log_level = tmpint;
+		break;
+	case 'e':
+		cfg.expiry_character = EARGF(print_usage())[0];
+		break;
+	default:
+		usage();
+	} ARGEND
+
+	for (i = 0; i < argc; ) {
+		if ((i + 3) > argc)
+			usage(
+			    "[spec] Parameter(s) missing "
+			    "for fifo \"%s\".\n",
+			    argv[i]
+			);
+		fifo  = argv[i++];
+		width = argv[i++];
+		ttl   = argv[i++];
+		if (!is_pos_num(width))
+			usage("[spec] Invalid width: \"%s\", "
+				"for fifo \"%s\"\n", width, fifo);
+		if (!is_decimal(ttl))
+			usage("[spec] Invalid TTL: \"%s\", "
+				"for fifo \"%s\"\n", ttl, fifo);
+		slot_create(&cfg, fifo, atoi(width), atof(ttl));
+	}
+	if (cfg.slots == NULL)
+		usage("No slot specs were given!\n");
+
+	cfg.slots = slots_rev(cfg.slots);
+	config_log(&cfg);
+
+	slots_assert_fifos_exist(cfg.slots);
+	config_stretch_for_separators(&cfg);
+	buf = buf_create(&cfg);
+	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
+		fatal("XOpenDisplay failed with: %p\n", d);
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = terminate;
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGINT , &sa, NULL);
 
-	opts_parse(&cfg, argc, argv);
-	slots_assert_fifos_exist(cfg.slots);
-	config_stretch_for_separators(&cfg);
-	buf = buf_create(&cfg);
-	if (cfg.to_x_root && !(d = XOpenDisplay(NULL)))
-		fatal("XOpenDisplay failed with: %p\n", d);
 	loop(&cfg, buf, d);
 	slots_close(cfg.slots);
 	return EXIT_SUCCESS;
