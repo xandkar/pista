@@ -13,4 +13,4 @@ demo: pista
 	./demo
 
 clean:
-	rm -f pista a b c d e f g
+	rm -f pista .pista a b c d e f g

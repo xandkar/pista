@@ -68,8 +68,20 @@ struct Slot {
 	Slot            *next;
 };
 
+/*
+ * TODO Split Config into Config and State.
+ *      Specs should be in config, slots should be in state;
+ *      cmd_fifo in config, cmd_fd in state;
+ *      etc.
+ *      Perhaps state could contain config, to keep num of func args down.
+ */
 typedef struct Config Config;
 struct Config {
+	/*
+	 * TODO Split interval into min and max intervals.
+	 *      Loop sleep enforces min;
+	 *      select enforces max.
+	 */
 	double interval;
 	char  *separator;
 	char   expiry_character;
@@ -77,6 +89,8 @@ struct Config {
 	int    slot_count;
 	int    buf_width;
 	int    to_x_root;
+	char  *cmd_fifo;
+	int    cmd_fd;
 };
 
 enum read_status {
@@ -335,6 +349,21 @@ slot_set_error(Slot *s, char *buf)
 	memset(b + i, '_', s->out_width - i);
 }
 
+static int
+read_line(int fd, char *buf, unsigned int buf_size)
+{
+	unsigned int i = 0;
+	char	     c = '\0';
+
+	do {
+		if (read(fd, &c, 1) != 1)
+			return -1;
+		buf[i++] = c;
+	} while (c != '\n' && i < buf_size);
+	buf[i - 1] = '\0';
+	return i;
+}
+
 static enum read_status
 slot_read(Slot *s, char *buf)
 {
@@ -387,8 +416,9 @@ slot_read(Slot *s, char *buf)
 	}
 }
 
+/* TODO Better name than slots_read, since we're now reading more than slots. */
 static void
-slots_read(const Config *cfg, const struct timespec *ti, char *buf)
+slots_read(Config *cfg, const struct timespec *ti, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -398,6 +428,45 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 	Slot *s;
 
 	FD_ZERO(&fds);
+	/* TODO Abstract-and-reuse the bellow FIFO error checks and opennings */
+
+	/* TODO Reconsider fatalism.
+	 *	Perhaps logging is sufficient?
+	 *	Perhaps announcing death on the bar is preferred?
+	 */
+	if (lstat(cfg->cmd_fifo, &st) < 0) {
+		fatal(
+		    "Cannot stat \"%s\". Error: %s\n",
+		    cfg->cmd_fifo,
+		    strerror(errno)
+		);
+	}
+	if (!(st.st_mode & S_IFIFO)) {
+		fatal("\"%s\" is not a FIFO\n", cfg->cmd_fifo);
+	}
+	if (cfg->cmd_fd < 0) {
+		debug(
+		    "%s: closed. opening. in_fd: %d\n",
+		    cfg->cmd_fifo,
+		    cfg->cmd_fd
+		);
+		cfg->cmd_fd = open(cfg->cmd_fifo, O_RDONLY | O_NONBLOCK);
+	} else {
+		debug(
+		    "%s: already openned. in_fd: %d\n",
+		    cfg->cmd_fifo,
+		    cfg->cmd_fd
+		);
+	}
+	if (cfg->cmd_fd == -1) {
+		fatal("Failed to open \"%s\"\n", cfg->cmd_fifo);
+	}
+	debug("%s: open. in_fd: %d\n", cfg->cmd_fifo, cfg->cmd_fd);
+	if (cfg->cmd_fd > maxfd)
+		maxfd = cfg->cmd_fd;
+
+	FD_SET(cfg->cmd_fd, &fds);
+
 	for (s = cfg->slots; s; s = s->next) {
 		/* TODO: Create the FIFO if it doesn't already exist. */
 		if (lstat(s->in_fifo, &st) < 0) {
@@ -462,6 +531,16 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 			    strerror(errno)
 			);
 		}
+	}
+	char cmd_line[100];
+	if (FD_ISSET(cfg->cmd_fd, &fds)) {
+		ready--;
+		if (read_line(cfg->cmd_fd, cmd_line, 100) >= 0)
+			info("COMMAND LINE: \"%s\"\n", cmd_line);
+		else
+			error("Failed to read a command line.");
+		close(cfg->cmd_fd);
+		cfg->cmd_fd = -1;
 	}
 	/* At-least-once ensures that expiries are still checked on timeouts. */
 	do {
@@ -619,7 +698,7 @@ print_usage()
 }
 
 static void
-loop(const Config *cfg, char *buf, Display *d)
+loop(Config *cfg, char *buf, Display *d)
 {
 	struct timespec
 		t0,  /* time stamp. before reading slots */
@@ -676,6 +755,8 @@ main(int argc, char *argv[])
 		.slot_count  = 0,
 		.buf_width   = 0,
 		.to_x_root   = 0,
+		.cmd_fifo    = ".pista",
+		.cmd_fd      = -1,
 	};
 	int i;
 	char *tmpstr;
@@ -686,8 +767,15 @@ main(int argc, char *argv[])
 	char *buf;
 	Display *d = NULL;
 	struct sigaction sa;
+	struct stat ctrl_stat;
 
 	ARGBEGIN {
+	case 'c':
+		tmpstr = EARGF(print_usage());
+		tmpint = strlen(tmpstr) + 1;
+		cfg.cmd_fifo = calloc(tmpint, sizeof(char));
+		strncpy(cfg.cmd_fifo, tmpstr, tmpint);
+		break;
 	case 'i':
 		tmpstr = EARGF(print_usage());
 		if (!is_decimal(tmpstr))
@@ -746,6 +834,20 @@ main(int argc, char *argv[])
 
 	cfg.slots = slots_rev(cfg.slots);
 	config_log(&cfg);
+
+	memset(&ctrl_stat, 0, sizeof(ctrl_stat));
+	switch (lstat(cfg.cmd_fifo, &ctrl_stat)) {
+	case 0: /* exists; assert fifo */
+		if (!(ctrl_stat.st_mode & S_IFIFO)) {
+			fatal("\"%s\" is not a FIFO\n", cfg.cmd_fifo);
+		}
+		break;
+	case -1: /* doesn't exist; create */
+		mkfifo(cfg.cmd_fifo, S_IRUSR | S_IWUSR);
+		break;
+	default:
+		assert(0);
+	}
 
 	slots_assert_fifos_exist(cfg.slots);
 	config_stretch_for_separators(&cfg);
