@@ -457,10 +457,11 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 	int maxfd = -1;
 	int ready = 0;
 	struct timespec t;
-	Slot *s;
+	Slot *s = NULL;
 	char cmd_line[CMD_MAX];
 
 	FD_ZERO(&fds);
+	memset(&t, 0, sizeof(struct timespec));
 
 	if ((cfg->cmd_fd = fifo_open(cfg->cmd_fifo)) == -1) {
 		error("Failed to open the command FIFO: \"%s\"\n", cfg->cmd_fifo);
