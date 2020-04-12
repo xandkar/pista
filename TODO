@@ -1,5 +1,13 @@
-- [ ] (needs ctrl) Runtime swap   slots
-- [ ] (needs ctrl) Runtime remove slot
-- [ ] (needs ctrl) Runtime add    slot
-- [ ] (needs ctrl) Runtime config settingl
+- [ ] (needs ctrl) Runtime config operations:
+	- [ ] set
+- [ ] (needs ctrl) Runtime slot operations:
+	- [ ] addl  $spec       # add-left/prepend
+	- [ ] addr  $spec       # add-right/append
+	- [ ] mvl   $pos        # move left. swap with left neighbor
+	- [ ] mvr   $pos        # move right. swap with right neighbor
+	- [ ] rm    $pos        # remove position
+	- [ ] swap  $pos  $pos  # swap positions
+	- [ ] insl  $spec
+	- [ ] insr  $spec
+    - [ ] width $pos  $width
 - [ ] (id ctrl) Control FIFO and command interpreter
