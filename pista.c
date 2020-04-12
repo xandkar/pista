@@ -51,6 +51,7 @@
 		exit(EXIT_FAILURE); \
 	} while (0)
 
+#define CMD_MAX 100
 #define ERRMSG "ERROR"
 
 
@@ -350,18 +351,23 @@ slot_set_error(Slot *s, char *buf)
 }
 
 static int
-read_line(int fd, char *buf, unsigned int buf_size)
+fd_read_line(int fd, char *buf, unsigned int buf_size)
 {
-	unsigned int i = 0;
-	char	     c = '\0';
+	unsigned int nread = 0;
+	unsigned int nbuffed = 0;
+	char c = '\0';
 
 	do {
 		if (read(fd, &c, 1) != 1)
 			return -1;
-		buf[i++] = c;
-	} while (c != '\n' && i < buf_size);
-	buf[i - 1] = '\0';
-	return i;
+		nread++;
+		if (nbuffed < buf_size)
+			buf[nbuffed++] = c;
+	} while (c != '\n');
+	buf[nbuffed - 1] = '\0';
+	if (nread > buf_size)
+		warn("Input line size exceeds buffer by %d\n", nread - buf_size);
+	return nbuffed;
 }
 
 static enum read_status
@@ -452,6 +458,7 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 	int ready = 0;
 	struct timespec t;
 	Slot *s;
+	char cmd_line[CMD_MAX];
 
 	FD_ZERO(&fds);
 
@@ -507,10 +514,9 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 			);
 		}
 	}
-	char cmd_line[100];
 	if (FD_ISSET(cfg->cmd_fd, &fds)) {
 		ready--;
-		if (read_line(cfg->cmd_fd, cmd_line, 100) >= 0)
+		if (fd_read_line(cfg->cmd_fd, cmd_line, CMD_MAX) >= 0)
 			info("COMMAND LINE: \"%s\"\n", cmd_line);
 		else
 			error("Failed to read a command line.");
