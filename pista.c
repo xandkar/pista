@@ -416,6 +416,33 @@ slot_read(Slot *s, char *buf)
 	}
 }
 
+static int
+fifo_open(char *name)
+{
+	struct stat st;
+	int fd = -1;
+
+	memset(&st, 0, sizeof(struct stat));
+
+	if (lstat(name, &st) < 0)
+		error("Cannot stat \"%s\". Error: %s\n", name, strerror(errno));
+
+	if (!(st.st_mode & S_IFIFO))
+		error("\"%s\" is not a FIFO\n", name);
+
+	if (fd < 0) {
+		debug("%s: closed. opening. fd: %d\n", name, fd);
+		fd = open(name, O_RDONLY | O_NONBLOCK);
+	} else {
+		debug("%s: already openned. fd: %d\n", name, fd);
+	}
+
+	if (fd == -1)
+		error("Failed to open \"%s\"\n", name);
+
+	return fd;
+}
+
 /* TODO Better name than slots_read, since we're now reading more than slots. */
 static void
 slots_read(Config *cfg, const struct timespec *ti, char *buf)
@@ -423,90 +450,38 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 	fd_set fds;
 	int maxfd = -1;
 	int ready = 0;
-	struct stat st;
 	struct timespec t;
 	Slot *s;
 
 	FD_ZERO(&fds);
-	/* TODO Abstract-and-reuse the bellow FIFO error checks and opennings */
 
 	/* TODO Reconsider fatalism.
 	 *	Perhaps logging is sufficient?
 	 *	Perhaps announcing death on the bar is preferred?
 	 */
-	if (lstat(cfg->cmd_fifo, &st) < 0) {
-		fatal(
-		    "Cannot stat \"%s\". Error: %s\n",
-		    cfg->cmd_fifo,
-		    strerror(errno)
-		);
-	}
-	if (!(st.st_mode & S_IFIFO)) {
-		fatal("\"%s\" is not a FIFO\n", cfg->cmd_fifo);
-	}
-	if (cfg->cmd_fd < 0) {
-		debug(
-		    "%s: closed. opening. in_fd: %d\n",
-		    cfg->cmd_fifo,
-		    cfg->cmd_fd
-		);
-		cfg->cmd_fd = open(cfg->cmd_fifo, O_RDONLY | O_NONBLOCK);
-	} else {
-		debug(
-		    "%s: already openned. in_fd: %d\n",
-		    cfg->cmd_fifo,
-		    cfg->cmd_fd
-		);
-	}
-	if (cfg->cmd_fd == -1) {
-		fatal("Failed to open \"%s\"\n", cfg->cmd_fifo);
-	}
-	debug("%s: open. in_fd: %d\n", cfg->cmd_fifo, cfg->cmd_fd);
+	if ((cfg->cmd_fd = fifo_open(cfg->cmd_fifo)) == -1)
+		fatal("Failed to open command pipe!\n");
+
 	if (cfg->cmd_fd > maxfd)
 		maxfd = cfg->cmd_fd;
 
 	FD_SET(cfg->cmd_fd, &fds);
 
 	for (s = cfg->slots; s; s = s->next) {
-		/* TODO: Create the FIFO if it doesn't already exist. */
-		if (lstat(s->in_fifo, &st) < 0) {
-			error(
-			    "Cannot stat \"%s\". Error: %s\n",
-			    s->in_fifo,
-			    strerror(errno)
-			);
-			slot_set_error(s, buf);
-			continue;
-		}
-		if (!(st.st_mode & S_IFIFO)) {
-			error("\"%s\" is not a FIFO\n", s->in_fifo);
-			slot_set_error(s, buf);
-			continue;
-		}
-		if (s->in_fd < 0) {
-			debug(
-			    "%s: closed. opening. in_fd: %d\n",
-			    s->in_fifo,
-			    s->in_fd
-			);
-			s->in_fd = open(s->in_fifo, O_RDONLY | O_NONBLOCK);
-		} else {
-			debug(
-			    "%s: already openned. in_fd: %d\n",
-			    s->in_fifo,
-			    s->in_fd
-			);
-		}
-		if (s->in_fd == -1) {
+		if ((s->in_fd = fifo_open(s->in_fifo)) == -1) {
 			/* TODO Consider backing off retries for failed slots */
-			error("Failed to open \"%s\"\n", s->in_fifo);
+			error(
+				"Failed to open slot %d pipe: \"%s\"\n",
+				s->out_pos_lo,
+				s->in_fifo
+			);
 			slot_set_error(s, buf);
 			continue;
+		} else {
+			if (s->in_fd > maxfd)
+				maxfd = s->in_fd;
+			FD_SET(s->in_fd, &fds);
 		}
-		debug("%s: open. in_fd: %d\n", s->in_fifo, s->in_fd);
-		if (s->in_fd > maxfd)
-			maxfd = s->in_fd;
-		FD_SET(s->in_fd, &fds);
 	}
 	debug("selecting...\n");
 	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
@@ -849,6 +824,7 @@ main(int argc, char *argv[])
 		assert(0);
 	}
 
+	/* TODO Consider creating FIFOs which don't already exist. */
 	slots_assert_fifos_exist(cfg.slots);
 	config_stretch_for_separators(&cfg);
 	buf = buf_create(&cfg);
