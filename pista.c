@@ -462,23 +462,19 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 
 	FD_ZERO(&fds);
 
-	/* TODO Reconsider fatalism.
-	 *	Perhaps logging is sufficient?
-	 *	Perhaps announcing death on the bar is preferred?
-	 */
-	if ((cfg->cmd_fd = fifo_open(cfg->cmd_fifo)) == -1)
-		fatal("Failed to open command pipe!\n");
-
-	if (cfg->cmd_fd > maxfd)
-		maxfd = cfg->cmd_fd;
-
-	FD_SET(cfg->cmd_fd, &fds);
+	if ((cfg->cmd_fd = fifo_open(cfg->cmd_fifo)) == -1) {
+		error("Failed to open the command FIFO: \"%s\"\n", cfg->cmd_fifo);
+	} else {
+		if (cfg->cmd_fd > maxfd)
+			maxfd = cfg->cmd_fd;
+		FD_SET(cfg->cmd_fd, &fds);
+	}
 
 	for (s = cfg->slots; s; s = s->next) {
 		if ((s->in_fd = fifo_open(s->in_fifo)) == -1) {
 			/* TODO Consider backing off retries for failed slots */
 			error(
-				"Failed to open slot %d pipe: \"%s\"\n",
+				"Failed to open slot %d FIFO: \"%s\"\n",
 				s->out_pos_lo,
 				s->in_fifo
 			);
