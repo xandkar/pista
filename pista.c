@@ -474,11 +474,7 @@ slots_read(Config *cfg, const struct timespec *ti, char *buf)
 	for (s = cfg->slots; s; s = s->next) {
 		if ((s->in_fd = fifo_open(s->in_fifo)) == -1) {
 			/* TODO Consider backing off retries for failed slots */
-			error(
-				"Failed to open slot %d FIFO: \"%s\"\n",
-				s->out_pos_lo,
-				s->in_fifo
-			);
+			error("Failed to open slot FIFO: \"%s\"\n", s->in_fifo);
 			slot_set_error(s, buf);
 			continue;
 		} else {
