@@ -11,3 +11,7 @@
 	- [ ] insr  $spec
     - [ ] width $pos  $width
 - [ ] (id ctrl) Control FIFO and command interpreter
+    - [x] read command pipe lines
+    - [ ] parse commans
+        - [ ] split line
+        - [ ] route command to argument parser
