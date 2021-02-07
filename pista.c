@@ -472,31 +472,31 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 				debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, buf)) {
 				/*
-				 * ### MESSAGE LOSS ###
-				 * is introduced by closing at EOM in addition
-				 * to EOF, since there may be unread messages
-				 * remaining in the pipe. However,
+				 * When to close the pipe/FIFO?
+				 * ============================================
 				 *
-				 * ### INTER-MESSAGE PUSHBACK ###
-				 * is also gained, since pipes block at the
-				 * "open" call.
+				 * read to EOM, close at EOM
+				 * --------------------------------------------
+				 * PRO: Inter-message pushback.
+				 *      (pipes block at "open" call)
+				 * CON: Message loss. Clients have to retry.
+				 *      Unread messages remain in the pipe and
+				 *      are dropped, which maybe an acceptable
+				 *      trade-off given that we only care about
+				 *      the latest state.
 				 *
-				 * This is an acceptable trade-off because we
-				 * are a stateless reporter of a _most-recent_
-				 * status, not a stateful accumulator.
+				 * read to EOF, close at EOF
+				 * --------------------------------------------
+				 * PRO: Lossless.
+				 * CON: A fast writer can trap us in the read
+				 *      loop.
 				 *
-				 * ### LOSSLESS ALTERNATIVES ###
-				 * - Read each pipe until EOF before reading
-				 *   another.
-				 *   PROBLEM: a fast writer can trap us in the
-				 *   read loop.
-				 *
-				 * - Read each pipe until EOM, but close only
-				 *   at EOF.
-				 *   PROBLEM: a fast writer can fill the pipe
-				 *   faster than we can read it and we end-up
-				 *   displaying stale data.
-				 *
+				 * read to EOM, close at EOF (CURRENTLY CHOSEN)
+				 * --------------------------------------------
+				 * PRO: Lossless. Yield after each msg.
+				 * CON: A fast writer can fill the pipe faster
+				 *      than we can read it and we end-up
+				 *      displaying stale data.
 				 */
 				case END_OF_MESSAGE:
 					s->out_pos_cur = s->out_pos_lo;
