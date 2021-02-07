@@ -315,7 +315,7 @@ slot_expire(
 		    expiry_character,
 		    s->out_width
 		);
-		warn("Slot expired: \"%s\"\n", s->in_fifo);
+		debug("Slot expired: \"%s\"\n", s->in_fifo);
 	}
 }
 
