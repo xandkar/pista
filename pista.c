@@ -388,7 +388,7 @@ slot_read(Slot *s, char *buf)
 }
 
 static void
-slots_read(const Config *cfg, const struct timespec *ti, char *buf)
+slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
@@ -440,7 +440,7 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 		FD_SET(s->in_fd, &fds);
 	}
 	debug("selecting...\n");
-	ready = pselect(maxfd + 1, &fds, NULL, NULL, ti, NULL);
+	ready = pselect(maxfd + 1, &fds, NULL, NULL, timeout, NULL);
 	debug("ready: %d\n", ready);
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	if (ready == -1) {
@@ -624,6 +624,7 @@ print_usage()
 static void
 loop(const Config *cfg, char *buf, Display *d)
 {
+	struct timespec *timeout;
 	struct timespec
 		t0,  /* time stamp. before reading slots */
 		t1,  /* time stamp. after  reading slots */
@@ -632,9 +633,10 @@ loop(const Config *cfg, char *buf, Display *d)
 		tc;  /* time interval correction (ti - td) when td < ti */
 
 	ti = timespec_of_float(cfg->interval);
+	timeout = NULL;
 	while (running) {
 		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		slots_read(cfg, &ti, buf);
+		slots_read(cfg, timeout, buf);
 		if (cfg->to_x_root) {
 			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
 				fatal("XStoreName failed.\n");
