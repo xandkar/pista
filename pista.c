@@ -506,7 +506,6 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 				case END_OF_FILE:
 				case FAILURE:
 					slot_close(s);
-					s->in_last_read = t;
 					ready--;
 					break;
 				case RETRY:
