@@ -27,7 +27,7 @@ while :; do date          > g; sleep 1; done &
 
 ./pista \
     -l 0 \
-    -i 0.5 \
+    -i 0 \
     a  5 2 \
     b 15 2 \
     c 15 2 \
