@@ -34,4 +34,4 @@ while :; do date          > g; sleep 1; done &
     d 30 2 \
     e 15 5 \
     f 15 2 \
-    g 20 2
+    g 30 2

@@ -499,6 +499,10 @@ slots_read(const Config *cfg, const struct timespec *ti, char *buf)
 				 *
 				 */
 				case END_OF_MESSAGE:
+					s->out_pos_cur = s->out_pos_lo;
+					s->in_last_read = t;
+					ready--;
+					break;
 				case END_OF_FILE:
 				case FAILURE:
 					slot_close(s);
