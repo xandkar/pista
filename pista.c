@@ -309,7 +309,11 @@ slot_expire(
 	struct timespec td;
 
 	timespecsub(&t, &(s->in_last_read), &td);
-	if (timespeccmp(&td, &(s->out_ttl), >=)) {
+	if (
+		s->out_ttl.tv_sec >= 0  /* Negative == infinity */
+		&&
+		timespeccmp(&td, &(s->out_ttl), >=)
+	) {
 		memset(
 		    buf + s->out_pos_lo,
 		    expiry_character,
@@ -574,6 +578,9 @@ is_decimal(const char *str)
 {
 	char c;
 	int seen = 0;
+
+	if (*str == '-')
+		str++;
 
 	while ((c = *(str++)) != '\0')
 		if (!isdigit(c)) {
