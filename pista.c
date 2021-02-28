@@ -511,6 +511,13 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 				 * PRO: Lossless. Fastest.
 				 * CON: Blocks the loop. Fast writer can trap us.
 				 *
+				 * Limited-depth first:
+				 * - yield @ F after a limit (N msgs or bytes)
+				 * - close @ F
+				 * --------------------------------------------
+				 * PRO: Lossless. Best of all of the above worlds?
+				 * CON: ?
+				 *
 				 */
 				case END_OF_MESSAGE:
 					s->out_pos_cur = s->out_pos_lo;
