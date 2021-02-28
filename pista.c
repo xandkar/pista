@@ -476,10 +476,15 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 				debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, buf)) {
 				/*
-				 * When to close the pipe/FIFO?
+				 * When to yield a pipe read?
+				 * When to close the pipe?
 				 * ============================================
+				 * M : EOM : End Of Message = LF or max msg length
+				 * F : EOF : End Of File
 				 *
-				 * read to EOM, close at EOM
+				 * Breadth first:
+				 * - yield @ M
+				 * - close @ M
 				 * --------------------------------------------
 				 * PRO: Inter-message pushback.
 				 *      (pipes block at "open" call)
@@ -489,18 +494,23 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 				 *      trade-off given that we only care about
 				 *      the latest state.
 				 *
-				 * read to EOF, close at EOF
-				 * --------------------------------------------
-				 * PRO: Lossless.
-				 * CON: A fast writer can trap us in the read
-				 *      loop.
-				 *
-				 * read to EOM, close at EOF (CURRENTLY CHOSEN)
+				 * >>> CURRENT <<<
+				 * Breadth first:
+				 * - yield @ M
+				 * - close @ F
 				 * --------------------------------------------
 				 * PRO: Lossless. Yield after each msg.
 				 * CON: A fast writer can fill the pipe faster
 				 *      than we can read it and we end-up
 				 *      displaying stale data.
+				 *
+				 * Depth first:
+				 * - yield @ F
+				 * - close @ F
+				 * --------------------------------------------
+				 * PRO: Lossless. Fastest.
+				 * CON: Blocks the loop. Fast writer can trap us.
+				 *
 				 */
 				case END_OF_MESSAGE:
 					s->out_pos_cur = s->out_pos_lo;
