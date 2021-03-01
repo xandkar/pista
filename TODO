@@ -1,5 +1,14 @@
-- [ ] (needs ctrl) Runtime swap   slots
-- [ ] (needs ctrl) Runtime remove slot
-- [ ] (needs ctrl) Runtime add    slot
-- [ ] (needs ctrl) Runtime config settingl
-- [ ] (id ctrl) Control FIFO and command interpreter
+Deprecated
+----------
+
+### Runtime reconfiguration
+On the second thought, this is an unnecessary complication. We can launch pista
+through tmux (see example in pista-sensors repo), which gives us a convenient
+way to reconfigure and restart pista without relaunching X.
+
+The following have been scrapped:
+- (needs ctrl) Runtime swap   slots
+- (needs ctrl) Runtime remove slot
+- (needs ctrl) Runtime add    slot
+- (needs ctrl) Runtime config setting
+- (id ctrl) Control FIFO and command interpreter
