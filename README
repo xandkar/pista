@@ -40,7 +40,11 @@ Each slot is given a TTL, after which, if there was no update - the slot is
 cleared - helping you spot broken sensors and not fool yourself with stale
 data.
 
-What is a sensor? What goes into a FIFO? Almost anything you want!
+What is a sensor?
+Any process that outputs lines of text.
+
+What goes into a FIFO?
+Lines of text. Each new line filling the slot corresponding to the sensor.
 
 
 USAGE
