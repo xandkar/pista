@@ -71,7 +71,9 @@ struct Slot {
 typedef struct Config Config;
 struct Config {
 	double interval;
+	char  *left_pad;
 	char  *separator;
+	char  *right_pad;
 	char   expiry_character;
 	Slot  *slots;
 	int    slot_count;
@@ -138,7 +140,10 @@ snooze(const struct timespec *t)
 static char *
 buf_create(Config *cfg)
 {
-	int seplen;
+	int lpadlen = strlen(cfg->left_pad);
+	int seplen  = strlen(cfg->separator);
+	int rpadlen = strlen(cfg->right_pad);
+	int nslots  = 0;
 	char *buf;
 	Slot *s;
 
@@ -148,13 +153,17 @@ buf_create(Config *cfg)
 		    "[memory] Failed to allocate buffer of %d bytes",
 		    cfg->buf_width
 		);
+
 	memset(buf, ' ', cfg->buf_width);
 	buf[cfg->buf_width] = '\0';
-	seplen = strlen(cfg->separator);
+
+	/* Set left pad */
+	strncpy(buf, cfg->left_pad, lpadlen);
+
 	/* Set the separators */
 	for (s = cfg->slots; s; s = s->next) {
 		/* Skip the first, left-most */
-		if (s->out_pos_lo) {
+		if (nslots++) {
 			/* Copying only seplen ensures we omit the '\0' byte. */
 			strncpy(
 			    buf + (s->out_pos_lo - seplen),
@@ -163,6 +172,10 @@ buf_create(Config *cfg)
 			);
 		}
 	}
+
+	/* Set right pad */
+	strncpy(buf + (cfg->buf_width - rpadlen), cfg->right_pad, rpadlen);
+
 	return buf;
 }
 
@@ -565,10 +578,12 @@ config_log(const Config *cfg)
 static void
 config_stretch_for_separators(Config *cfg)
 {
-	int seplen = strlen(cfg->separator);
-	int prefix = 0;
-	int nslots = 0;
-	Slot *s    = cfg->slots;
+	int lpadlen = strlen(cfg->left_pad);
+	int seplen  = strlen(cfg->separator);
+	int rpadlen = strlen(cfg->right_pad);
+	int prefix  = lpadlen;
+	int nslots  = 0;
+	Slot *s     = cfg->slots;
 
 	while (s) {
 		s->out_pos_lo  += prefix;
@@ -578,7 +593,7 @@ config_stretch_for_separators(Config *cfg)
 		nslots++;
 		s = s->next;
 	}
-	cfg->buf_width += (seplen * (nslots - 1));
+	cfg->buf_width += lpadlen + (seplen * (nslots - 1)) + rpadlen;
 }
 
 static int
@@ -699,7 +714,9 @@ main(int argc, char *argv[])
 {
 	Config cfg = {
 		.interval    = 1.0,
+		.left_pad    = "[",
 		.separator   = "|",
+		.right_pad   = "]",
 		.expiry_character = '_',
 		.slots       = NULL,
 		.slot_count  = 0,
@@ -723,11 +740,23 @@ main(int argc, char *argv[])
 			usage("Option -i parameter invalid: \"%s\"\n", tmpstr);
 		cfg.interval = atof(tmpstr);
 		break;
-	case 's':
+	case 'f':  /* left padding. 'l' is taken by log_level */
+		tmpstr = EARGF(print_usage());
+		tmpint = strlen(tmpstr) + 1;
+		cfg.left_pad = calloc(tmpint, sizeof(char));
+		strncpy(cfg.left_pad, tmpstr, tmpint);
+		break;
+	case 's':  /* middle separator */
 		tmpstr = EARGF(print_usage());
 		tmpint = strlen(tmpstr) + 1;
 		cfg.separator = calloc(tmpint, sizeof(char));
 		strncpy(cfg.separator, tmpstr, tmpint);
+		break;
+	case 'r':  /* right padding */
+		tmpstr = EARGF(print_usage());
+		tmpint = strlen(tmpstr) + 1;
+		cfg.right_pad = calloc(tmpint, sizeof(char));
+		strncpy(cfg.right_pad, tmpstr, tmpint);
 		break;
 	case 'x':
 		cfg.to_x_root = 1;

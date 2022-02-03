@@ -27,6 +27,9 @@ while :; do date          > g; sleep 1; done &
 echo  'never exprires'    > h &
 
 ./pista \
+    -f '(' \
+    -s ')  (' \
+    -r ')' \
     -l 0 \
     -i 0 \
     a  5 2 \
