@@ -13,4 +13,5 @@ demo: pista
 	./demo
 
 clean:
-	rm -f pista a b c d e f g h
+	rm -f pista
+	rm -rf .demo-pipes
