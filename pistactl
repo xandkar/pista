@@ -4,6 +4,8 @@ set -e
 
 PROGRAM="$0"
 
+SLOT_PIPE_FILE_NAME=out
+
 counter_next() {
     local -r file="$_counter_file"
 
@@ -26,33 +28,41 @@ start_slot() {
     local -r dir_slot="$1"
 
     local -r name=$(basename "$dir_slot")
-    local -r pipe="$_dir_pipes"/"$name"
+    local -r out="$dir_slot"/"$SLOT_PIPE_FILE_NAME"
     local -r run="$dir_slot"/run
-    local -r width=$(< "$dir_slot"/width)
+    local -r len=$(< "$dir_slot"/len)
     local -r ttl=$(< "$dir_slot"/ttl)
 
-    rm -f "$pipe"
-    mkfifo "$pipe"
-    tmux_new_win "$run > $pipe; notify-send -u critical 'pista slot exited!' \"$name\n\$?\""
-    printf '%s %d %d\n' "$pipe" "$width" "$ttl"
+    rm -f "$out"
+    mkfifo "$out"
+    tmux_new_win "cd $dir_slot && $run > $out; notify-send -u critical 'pista slot exited!' \"$name\n\$?\""
+    printf '%s %d %d\n' "$out" "$len" "$ttl"
 }
 
 start_slots() {
     local dir_slot
 
-    find "$_dir_slots" -mindepth 1 -maxdepth 1 -type d \
-    | sort \
+    list_slots \
     | while read -r dir_slot; do
         start_slot "$dir_slot"
     done \
     | xargs
 }
 
+list_slots() {
+    find "$_dir_slots" -mindepth 1 -maxdepth 1 -type d | sort
+}
+
+remove_slot_pipes() {
+    local slot
+
+    list_slots | while read -r slot; do rm -f "$slot"/"$SLOT_PIPE_FILE_NAME" ; done
+}
+
 _start() {
     local -r opts_default="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
     local -r opts=$(< "$_dir"/options) || "$opts_default"
 
-    mkdir -p "$_dir_pipes"
     mkdir -p "$_dir_slots"
 
     $_tmux new-session -d -s "$_session"
@@ -68,7 +78,7 @@ _start() {
 
 _stop() {
     $_tmux kill-session -t "$_session"
-    rm -rf "$_dir_pipes"
+    remove_slot_pipes
     rm -f "$_file_sock"
 }
 
@@ -109,7 +119,6 @@ main() {
             _dir="$arg_dir";;
     esac
 
-    _dir_pipes="$_dir"/pipes
     _dir_slots="$_dir"/slots
     _file_sock="$_dir"/sock
     _tmux="tmux -S $_file_sock"
