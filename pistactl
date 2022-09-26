@@ -5,8 +5,6 @@ set -e
 DEFAULT_SLOT_TTL=5
 DEFAULT_PISTA_OPTS="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
 
-PROGRAM="$0"
-
 counter_next() {
     local -r file="$_counter_file"
 
@@ -90,6 +88,7 @@ _attach() {
 }
 
 main() {
+    local -r program="$0"
     local -r arg_cmd="$1"
     local -r arg_dir="$2"
 
@@ -101,7 +100,7 @@ main() {
         'restart' ) cmd=_restart;;
         'attach'  ) cmd=_attach;;
         'help')
-            echo "$PROGRAM (start|stop|restart|attach|help) [DIRECTORY]" >&2
+            echo "$program (start|stop|restart|attach|help) [DIRECTORY]" >&2
             exit 1;;
         '')
             echo "[error] No command given." >&2
