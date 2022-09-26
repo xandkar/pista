@@ -3,6 +3,7 @@
 set -e
 
 DEFAULT_SLOT_TTL=5
+DEFAULT_PISTA_OPTS="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
 
 PROGRAM="$0"
 
@@ -58,8 +59,7 @@ remove_slot_pipes() {
 }
 
 _start() {
-    local -r opts_default="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
-    local -r opts=$(< "$_dir"/options) || "$opts_default"
+    local -r opts=$(< "$_dir"/options) || "$DEFAULT_PISTA_OPTS"
 
     mkdir -p "$_dir_slots"
 
