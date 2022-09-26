@@ -4,8 +4,6 @@ set -e
 
 PROGRAM="$0"
 
-SLOT_PIPE_FILE_NAME=out
-
 counter_next() {
     local -r file="$_counter_file"
 
@@ -28,7 +26,7 @@ start_slot() {
     local -r dir_slot="$1"
 
     local -r name=$(basename "$dir_slot")
-    local -r out="$dir_slot"/"$SLOT_PIPE_FILE_NAME"
+    local -r out="$dir_slot"/out
     local -r run="$dir_slot"/run
     local -r len=$(< "$dir_slot"/len)
     local -r ttl=$(< "$dir_slot"/ttl)
@@ -54,9 +52,7 @@ list_slots() {
 }
 
 remove_slot_pipes() {
-    local slot
-
-    list_slots | while read -r slot; do rm -f "$slot"/"$SLOT_PIPE_FILE_NAME" ; done
+    find "$_dir_slots" -type p -delete
 }
 
 _start() {
