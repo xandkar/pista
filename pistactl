@@ -12,6 +12,26 @@ counter_next() {
     cat "$file"
 }
 
+assert_file_not_empty() {
+    local -r path="$1"
+
+    if [ ! -s "$path" ]
+    then
+        printf '[error] file missing or empty: "%s"\n' "$path" >&2
+        exit 1
+    fi
+}
+
+assert_file_executable() {
+    local -r path="$1"
+
+    if [ ! -x "$path" ]
+    then
+        printf '[error] file missing or not executable: "%s"\n' "$path" >&2
+        exit 1
+    fi
+}
+
 tmux_new_win() {
     local -r cmd="$1"
 
@@ -27,15 +47,22 @@ start_slot() {
     local -r dir_slot="$1"
 
     local -r name=$(basename "$dir_slot")
-    local -r out="$dir_slot"/out
-    local -r run="$dir_slot"/run
-    local -r len=$(< "$dir_slot"/len)
-    local -r ttl=$(< "$dir_slot"/ttl) || "$DEFAULT_SLOT_TTL"
+    local -r out_pipe="$dir_slot"/out
+    local -r run_file="$dir_slot"/run
+    local -r len_file="$dir_slot"/len
+    local -r ttl_file="$dir_slot"/ttl
 
-    rm -f "$out"
-    mkfifo "$out"
-    tmux_new_win "cd $dir_slot && $run > $out; notify-send -u critical 'pista slot exited!' \"$name\n\$?\""
-    printf '%s %d %d\n' "$out" "$len" "$ttl"
+    assert_file_not_empty "$run_file"
+    assert_file_executable "$run_file"
+    assert_file_not_empty "$len_file"
+
+    local -r len=$(< "$len_file")
+    local -r ttl=$(< "$ttl_file") || "$DEFAULT_SLOT_TTL"
+
+    rm -f "$out_pipe"
+    mkfifo "$out_pipe"
+    tmux_new_win "cd $dir_slot && $run_file > $out_pipe; notify-send -u critical 'pista slot exited!' \"$name\n\$?\""
+    printf '%s %d %d\n' "$out_pipe" "$len" "$ttl"
 }
 
 start_slots() {
