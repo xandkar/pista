@@ -2,6 +2,8 @@
 
 set -e
 
+DEFAULT_SLOT_TTL=5
+
 PROGRAM="$0"
 
 counter_next() {
@@ -29,7 +31,7 @@ start_slot() {
     local -r out="$dir_slot"/out
     local -r run="$dir_slot"/run
     local -r len=$(< "$dir_slot"/len)
-    local -r ttl=$(< "$dir_slot"/ttl)
+    local -r ttl=$(< "$dir_slot"/ttl) || "$DEFAULT_SLOT_TTL"
 
     rm -f "$out"
     mkfifo "$out"
