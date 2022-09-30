@@ -2,6 +2,7 @@
 
 set -e
 
+DEFAULT_SESSION=pistactl
 DEFAULT_SLOT_TTL=5
 DEFAULT_PISTA_OPTS="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
 
@@ -147,7 +148,7 @@ main() {
     then
         _session=$(< "$session_name_file")
     else
-        _session=$(echo "$_dir" | sha256sum | awk '{print $1}')
+        _session="$DEFAULT_SESSION"
     fi
 
     _dir_slots="$_dir"/slots
