@@ -102,7 +102,6 @@ _start() {
 _stop() {
     $_tmux kill-session -t "$_session"
     remove_slot_pipes
-    rm -f "$_file_sock"
 }
 
 _restart() {
@@ -143,10 +142,6 @@ main() {
             _dir="$arg_dir";;
     esac
 
-    _dir_slots="$_dir"/slots
-    _file_sock="$_dir"/sock
-    _tmux="tmux -S $_file_sock"
-
     local -r session_name_file="$_dir"/session
     if [ -s "$session_name_file" ]
     then
@@ -154,6 +149,9 @@ main() {
     else
         _session=$(echo "$_dir" | sha256sum | awk '{print $1}')
     fi
+
+    _dir_slots="$_dir"/slots
+    _tmux="tmux -L $_session"
 
     mkdir -p "$_dir"
     cd "$_dir"
