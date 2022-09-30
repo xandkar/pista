@@ -2,6 +2,7 @@
 
 set -e
 
+DEFAULT_DIR=~/.pistactl
 DEFAULT_SESSION=pistactl
 DEFAULT_SLOT_TTL=5
 DEFAULT_PISTA_OPTS="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
@@ -138,7 +139,7 @@ main() {
     esac
     case "$arg_dir" in
         '')
-            _dir=~/.pistactl."$(hostname)";;
+            _dir="$DEFAULT_DIR";;
         *)
             _dir="$arg_dir";;
     esac
