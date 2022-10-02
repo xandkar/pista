@@ -35,7 +35,9 @@ tmux_new_win() {
     local -r window=$(counter_next "$_counter_file")
     local -r pane=0
 
-    echo "[debug] window:\"$window\" cmd:\"$cmd\"" >&2
+    if [[ "$DEBUG" ]]; then
+        echo "[debug] window:\"$window\" cmd:\"$cmd\"" >&2
+    fi
     $_tmux new-window -t "$_session"
     $_tmux send-keys  -t "$_session":"$window"."$pane" "$cmd" ENTER
 }
