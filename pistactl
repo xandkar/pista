@@ -64,10 +64,11 @@ start_slots() {
 
     local len ttl cmd arg
 
-    while read -r len ttl cmd arg; do
+    awk -F \# '{print $1}' "$slots_conf_file_path" \
+    | awk 'NF > 2' \
+    | while read -r len ttl cmd arg; do
         start_slot "$len" "$ttl" "$cmd" "$arg"
-    done \
-    < "$slots_conf_file_path"
+    done
 }
 
 remove_slot_pipes() {
