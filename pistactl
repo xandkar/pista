@@ -82,7 +82,7 @@ start_slots() {
         # Incorrect - warn and ignore:
         {
             printf \
-                "[warning] slot.conf line %d is not in the expected format of:" \
+                "[warning] slot configuration line %d is not in the expected format of:" \
                 "\"LEN TTL COMMAND\". Line: \"%s\"\n", NR, $0 \
                 > "/dev/stderr"
         }
