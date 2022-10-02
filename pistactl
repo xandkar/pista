@@ -4,34 +4,15 @@ set -e
 
 DEFAULT_DIR=~/.pistactl
 DEFAULT_SESSION=pistactl
-DEFAULT_SLOT_TTL=5
 DEFAULT_PISTA_OPTS="-l 3 -i 0 -f ' (' -s ')    (' -r ') ' -x"
+
+SLOTS_CONF_FILE_NAME=slots.conf
 
 counter_next() {
     local -r file="$_counter_file"
 
     awk '{n = $1} END {print n + 1}' "$file" | sponge "$file"
     cat "$file"
-}
-
-assert_file_not_empty() {
-    local -r path="$1"
-
-    if [ ! -s "$path" ]
-    then
-        printf '[error] file missing or empty: "%s"\n' "$path" >&2
-        exit 1
-    fi
-}
-
-assert_file_executable() {
-    local -r path="$1"
-
-    if [ ! -x "$path" ]
-    then
-        printf '[error] file missing or not executable: "%s"\n' "$path" >&2
-        exit 1
-    fi
 }
 
 from_file_or_default() {
@@ -48,13 +29,6 @@ from_file_or_default() {
     echo "$value"
 }
 
-from_file_with_assert() {
-    local -r file="$1"
-
-    assert_file_not_empty "$file"
-    cat "$file"
-}
-
 tmux_new_win() {
     local -r cmd="$1"
 
@@ -67,37 +41,33 @@ tmux_new_win() {
 }
 
 start_slot() {
-    local -r dir_slot="$1"
+    local -r len="$1"
+    local -r ttl="$2"
+    local -r cmd="$3"
+    local -r arg="$4"
 
-    local -r name=$(basename "$dir_slot")
+    local -r dir_slot="$_dir"/slots/"$cmd"
     local -r out_pipe="$dir_slot"/out
-    local -r run_file="$dir_slot"/run
-    local -r len_file="$dir_slot"/len
-    local -r ttl_file="$dir_slot"/ttl
-    local -r len=$(from_file_with_assert "$len_file")
-    local -r ttl=$(from_file_or_default "$ttl_file" "$DEFAULT_SLOT_TTL")
 
-    assert_file_not_empty "$run_file"
-    assert_file_executable "$run_file"
-
+    # We're going to cd into $dir_slot just in case the $cmd will end up
+    # writing something to its current working directory - so that it is easier
+    # to find and/or debug.
+    mkdir -p "$dir_slot"
     rm -f "$out_pipe"
     mkfifo "$out_pipe"
-    tmux_new_win "cd $dir_slot && $run_file > $out_pipe; notify-send -u critical 'pista slot exited!' \"$name\n\$?\""
+    tmux_new_win "cd $dir_slot && $cmd $arg > $out_pipe; notify-send -u critical 'pista slot exited!' \"$cmd\n\$?\""
     printf '%s %d %d\n' "$out_pipe" "$len" "$ttl"
 }
 
 start_slots() {
-    local dir_slot
+    local -r slots_conf_file_path="$_dir"/"$SLOTS_CONF_FILE_NAME"
 
-    list_slots \
-    | while read -r dir_slot; do
-        start_slot "$dir_slot"
+    local len ttl cmd arg
+
+    while read -r len ttl cmd arg; do
+        start_slot "$len" "$ttl" "$cmd" "$arg"
     done \
-    | xargs
-}
-
-list_slots() {
-    find "$_dir_slots" -mindepth 1 -maxdepth 1 -type d | sort
+    < "$slots_conf_file_path"
 }
 
 remove_slot_pipes() {
@@ -116,7 +86,7 @@ _start() {
     #     $(start_slot $((win++)) foo)
     _counter_file=$(mktemp)
     tmux_new_win \
-        "pista $opts $(start_slots); notify-send -u critical 'pista exited!' \"\$?\""
+        "pista $opts $(start_slots | xargs); notify-send -u critical 'pista exited!' \"\$?\""
     rm "$_counter_file"
 }
 
