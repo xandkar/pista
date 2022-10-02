@@ -65,7 +65,26 @@ start_slots() {
     local len ttl cmd arg
 
     awk -F \# '{print $1}' "$slots_conf_file_path" \
-    | awk 'NF > 2' \
+    | awk '
+        # Blank - ignore:
+        NF == 0 {
+            next
+        }
+
+        # Correct - use:
+        NF >= 3 && $1 ~ /^[0-9]+$/ && $2 ~ /^-?[0-9]+$/ {
+            print
+            next
+        }
+
+        # Incorrect - warn and ignore:
+        {
+            printf \
+                "[warning] slot.conf line %d is not in the expected format of:" \
+                "\"LEN TTL COMMAND\". Line: \"%s\"\n", NR, $0 \
+                > "/dev/stderr"
+        }
+    ' \
     | while read -r len ttl cmd arg; do
         start_slot "$len" "$ttl" "$cmd" "$arg"
     done
