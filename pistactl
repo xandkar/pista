@@ -34,6 +34,27 @@ assert_file_executable() {
     fi
 }
 
+from_file_or_default() {
+    local -r file="$1"
+    local -r default="$2"
+    local value
+
+    if [ -s "$file" ]
+    then
+        value=$(< "$file")
+    else
+        value="$default"
+    fi
+    echo "$value"
+}
+
+from_file_with_assert() {
+    local -r file="$1"
+
+    assert_file_not_empty "$file"
+    cat "$file"
+}
+
 tmux_new_win() {
     local -r cmd="$1"
 
@@ -53,13 +74,11 @@ start_slot() {
     local -r run_file="$dir_slot"/run
     local -r len_file="$dir_slot"/len
     local -r ttl_file="$dir_slot"/ttl
+    local -r len=$(from_file_with_assert "$len_file")
+    local -r ttl=$(from_file_or_default "$ttl_file" "$DEFAULT_SLOT_TTL")
 
     assert_file_not_empty "$run_file"
     assert_file_executable "$run_file"
-    assert_file_not_empty "$len_file"
-
-    local -r len=$(< "$len_file")
-    local -r ttl=$(< "$ttl_file") || "$DEFAULT_SLOT_TTL"
 
     rm -f "$out_pipe"
     mkfifo "$out_pipe"
@@ -86,7 +105,7 @@ remove_slot_pipes() {
 }
 
 _start() {
-    local -r opts=$(< "$_dir"/options) || "$DEFAULT_PISTA_OPTS"
+    local -r opts=$(from_file_or_default "$_dir"/options "$DEFAULT_PISTA_OPTS")
 
     mkdir -p "$_dir_slots"
 
