@@ -48,7 +48,8 @@ start_slot() {
     local -r cmd="$3"
     local -r arg="$4"
 
-    local -r dir_slot="$_dir"/slots/"$cmd"
+    local -r slot_id=$((++_slot_count))
+    local -r dir_slot="$_dir"/slots/"$slot_id"
     local -r out_pipe="$dir_slot"/out
 
     # We're going to cd into $dir_slot just in case the $cmd will end up
@@ -63,8 +64,8 @@ start_slot() {
 
 start_slots() {
     local -r slots_conf_file_path="$_dir"/"$SLOTS_CONF_FILE_NAME"
-
     local len ttl cmd arg
+    _slot_count=0
 
     awk -F \# '{print $1}' "$slots_conf_file_path" \
     | awk '
