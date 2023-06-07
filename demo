@@ -33,7 +33,6 @@ mkfifo "$DIR"/never-expire; echo  'never exprires'    > "$DIR"/never-expire &
     -s ')  (' \
     -r ')' \
     -l 0 \
-    -i 0 \
     "$DIR"/counter  5 2 \
     "$DIR"/mem 15 2 \
     "$DIR"/disk 15 2 \

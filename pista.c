@@ -118,25 +118,6 @@ timespec_of_float(const double n)
 	return t;
 }
 
-static void
-snooze(const struct timespec *t)
-{
-	struct timespec remainder;
-
-	if (nanosleep(t, &remainder) < 0) {
-		if (errno == EINTR)
-			warn(
-			    "nanosleep interrupted. Remainder: "
-			    "{ tv_sec = %ld, tv_nsec = %ld }",
-			    remainder.tv_sec, remainder.tv_nsec);
-			/* No big deal if we occasionally sleep less,
-			 * so not attempting to correct after an interruption.
-			 */
-		else
-			fatal("nanosleep: %s\n", strerror(errno));
-	}
-}
-
 static char *
 buf_create(Config *cfg)
 {
@@ -311,7 +292,7 @@ slots_close(Slot *s)
 }
 
 
-static void
+static int
 slot_expire(
 	const Slot *s,
 	const struct timespec t,
@@ -333,7 +314,9 @@ slot_expire(
 		    s->out_width
 		);
 		debug("Slot expired: \"%s\"\n", s->in_fifo);
+		return 1;
 	}
+	return 0;
 }
 
 static void
@@ -404,12 +387,13 @@ slot_read(Slot *s, char *buf)
 	}
 }
 
-static void
+static int
 slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 {
 	fd_set fds;
 	int maxfd = -1;
 	int ready = 0;
+	int updated = 0;
 	struct stat st;
 	struct timespec t;
 	Slot *s;
@@ -470,7 +454,7 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 			    strerror(errno)
 			);
 			/* TODO: Reconsider what to do here. */
-			return;
+			return updated;
 		default:
 			fatal(
 			    "pselect failed: %d, errno: %d, msg: %s\n",
@@ -486,6 +470,7 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 			if (s->in_fd < 0)
 				continue;
 			if (FD_ISSET(s->in_fd, &fds)) {
+				updated++;
 				debug("reading: %s\n", s->in_fifo);
 				switch (slot_read(s, buf)) {
 				/*
@@ -548,11 +533,14 @@ slots_read(const Config *cfg, const struct timespec *timeout, char *buf)
 					assert(0);
 				}
 			} else {
-				slot_expire(s, t, cfg->expiry_character, buf);
+				updated += slot_expire(
+				    s,t, cfg->expiry_character, buf
+				);
 			}
 		}
 	} while (ready);
 	assert(ready == 0);
+	return updated;
 }
 
 static void
@@ -637,7 +625,9 @@ print_usage()
 	    "  FILE_PATH  = string\n"
 	    "  DATA_WIDTH = int  (* (positive) number of characters *)\n"
 	    "  DATA_TTL   = float  (* (positive) number of seconds *)\n"
-	    "  OPTION     = -i INTERVAL\n"
+	    "  OPTION     = -i INTERVAL (* Max IO wait before yielding"
+			    "to check slot expirations. "
+			    "Must be greater than 0 *)\n"
 	    "             | -s SEPARATOR\n"
 	    "             | -x (* Output to X root window *)\n"
 	    "             | -l LOG_LEVEL\n"
@@ -663,41 +653,20 @@ print_usage()
 static void
 loop(const Config *cfg, char *buf, Display *d)
 {
-	struct timespec *timeout;
-	struct timespec
-		t0,  /* time stamp. before reading slots */
-		t1,  /* time stamp. after  reading slots */
-		ti,  /* time interval desired    (t1 - t0) */
-		td,  /* time interval measured   (t1 - t0) */
-		tc;  /* time interval correction (ti - td) when td < ti */
+	struct timespec timeout;
 
-	ti = timespec_of_float(cfg->interval);
-	timeout = NULL;
+	timeout = timespec_of_float(cfg->interval);
 	while (running) {
-		clock_gettime(CLOCK_MONOTONIC, &t0); // FIXME: check errors
-		slots_read(cfg, timeout, buf);
-		if (cfg->to_x_root) {
-			if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
-				fatal("XStoreName failed.\n");
-			XFlush(d);
-		} else {
-			puts(buf);
-			fflush(stdout);
-		}
-		clock_gettime(CLOCK_MONOTONIC, &t1); // FIXME: check errors
-		timespecsub(&t1, &t0, &td);
-		debug(
-		    "td {tv_sec = %ld, tv_nsec = %ld}\n",
-		    td.tv_sec,
-		    td.tv_nsec
-		);
-		if (timespeccmp(&td, &ti, <)) {
-			/*
-			 * Pushback on data producers by refusing to read the
-			 * pipe more frequently than the interval.
-			 */
-			timespecsub(&ti, &td, &tc);
-			snooze(&tc);
+		// Only bother outputting if something was updated.
+		if (slots_read(cfg, &timeout, buf) > 0) {
+			if (cfg->to_x_root) {
+				if (XStoreName(d, DefaultRootWindow(d), buf) < 0)
+					fatal("XStoreName failed.\n");
+				XFlush(d);
+			} else {
+				puts(buf);
+				fflush(stdout);
+			}
 		}
 	}
 }
@@ -738,6 +707,9 @@ main(int argc, char *argv[])
 		tmpstr = EARGF(print_usage());
 		if (!is_decimal(tmpstr))
 			usage("Option -i parameter invalid: \"%s\"\n", tmpstr);
+		tmpint = atof(tmpstr);
+		if (tmpint <= 0)
+			usage("Interval must be greater than 0!\n");
 		cfg.interval = atof(tmpstr);
 		break;
 	case 'f':  /* left padding. 'l' is taken by log_level */
