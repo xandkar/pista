@@ -778,7 +778,8 @@ main(int argc, char *argv[])
 		cfg.expiry_character = EARGF(print_usage())[0];
 		break;
 	default:
-		usage();
+		print_usage();
+		exit(EXIT_FAILURE);
 	} ARGEND
 
 	for (i = 0; i < argc; ) {
