@@ -683,9 +683,9 @@ main(int argc, char *argv[])
 {
 	Config cfg = {
 		.interval    = 1.0,
-		.left_pad    = "[",
-		.separator   = "|",
-		.right_pad   = "]",
+		.left_pad    = " ",
+		.separator   = " ",
+		.right_pad   = " ",
 		.expiry_character = '_',
 		.slots       = NULL,
 		.slot_count  = 0,
