@@ -14,7 +14,7 @@ build_with_compcert:
 demo: $(EXE)
 	./demo
 
-install: $(EXE) pistactl
+install: $(EXE)
 	cp -f $^ $(PREFIX)/bin
 
 clean:
