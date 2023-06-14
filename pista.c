@@ -99,6 +99,7 @@ enum log_level {
 
 char *argv0 = NULL;  /* set by arg.h */
 static int running = 1;
+static int exit_code = EXIT_SUCCESS;
 static enum log_level log_level = ERROR;
 static const char errmsg[] = ERRMSG;
 static const int  errlen   = sizeof(ERRMSG) - 1;
@@ -674,8 +675,9 @@ loop(const Config *cfg, char *buf, Display *d)
 static void
 terminate(const int s)
 {
-	debug("terminating due to signal %d\n", s);
+	warn("Terminating due to signal: %d\n", s);
 	running = 0;
+	exit_code = EXIT_FAILURE;
 }
 
 int
@@ -791,5 +793,5 @@ main(int argc, char *argv[])
 
 	loop(&cfg, buf, d);
 	slots_close(cfg.slots);
-	return EXIT_SUCCESS;
+	return exit_code;
 }
